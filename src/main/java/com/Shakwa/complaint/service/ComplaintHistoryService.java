@@ -132,6 +132,77 @@ public class ComplaintHistoryService {
     }
     
     /**
+     * تسجيل طلب معلومات إضافية من المواطن
+     */
+    public void recordInfoRequested(Complaint complaint, User actor, String requestMessage) {
+        ComplaintHistory history = new ComplaintHistory(complaint, actor, HistoryActionType.INFO_REQUESTED);
+        
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("requestMessage", requestMessage);
+        
+        try {
+            history.setMetadata(objectMapper.writeValueAsString(metadata));
+        } catch (JsonProcessingException e) {
+            logger.error("Error serializing metadata for info request", e);
+        }
+        
+        history.setActionDescription(generateActionDescription(HistoryActionType.INFO_REQUESTED, actor, 
+            null, null, requestMessage));
+        complaintHistoryRepository.save(history);
+    }
+    
+    /**
+     * تسجيل توفير معلومات إضافية من قبل المواطن
+     */
+    public void recordInfoProvided(Complaint complaint, User actor, com.Shakwa.complaint.entity.InformationRequest request) {
+        ComplaintHistory history = new ComplaintHistory(complaint, actor, HistoryActionType.INFO_PROVIDED);
+        
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("requestId", String.valueOf(request.getId()));
+        if (request.getResponseMessage() != null) {
+            metadata.put("responseMessage", request.getResponseMessage());
+        }
+        if (request.getAttachments() != null && !request.getAttachments().isEmpty()) {
+            metadata.put("attachmentsCount", String.valueOf(request.getAttachments().size()));
+        }
+        
+        try {
+            history.setMetadata(objectMapper.writeValueAsString(metadata));
+        } catch (JsonProcessingException e) {
+            logger.error("Error serializing metadata for info provided", e);
+        }
+        
+        String description = request.getResponseMessage() != null 
+            ? String.format("تم توفير معلومات إضافية: %s", request.getResponseMessage())
+            : "تم توفير معلومات إضافية";
+        
+        history.setActionDescription(generateActionDescription(HistoryActionType.INFO_PROVIDED, actor, 
+            null, null, description));
+        complaintHistoryRepository.save(history);
+    }
+    
+    /**
+     * تسجيل إلغاء طلب المعلومات
+     */
+    public void recordInfoRequestCancelled(Complaint complaint, User actor, com.Shakwa.complaint.entity.InformationRequest request) {
+        ComplaintHistory history = new ComplaintHistory(complaint, actor, HistoryActionType.INFO_REQUEST_CANCELLED);
+        
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("requestId", String.valueOf(request.getId()));
+        metadata.put("requestMessage", request.getRequestMessage());
+        
+        try {
+            history.setMetadata(objectMapper.writeValueAsString(metadata));
+        } catch (JsonProcessingException e) {
+            logger.error("Error serializing metadata for info request cancelled", e);
+        }
+        
+        history.setActionDescription(generateActionDescription(HistoryActionType.INFO_REQUEST_CANCELLED, actor, 
+            null, null, null));
+        complaintHistoryRepository.save(history);
+    }
+    
+    /**
      * توليد وصف الإجراء بالعربية
      */
     private String generateActionDescription(HistoryActionType actionType, User actor, 
@@ -163,6 +234,15 @@ public class ComplaintHistoryService {
                 
             case UNLOCKED:
                 return String.format("تم تحرير الشكوى (انتهاء المعالجة) من قبل %s", actorName);
+                
+            case INFO_REQUESTED:
+                return String.format("تم طلب معلومات إضافية من المواطن من قبل %s", actorName);
+                
+            case INFO_PROVIDED:
+                return String.format("تم توفير معلومات إضافية من قبل %s", actorName);
+                
+            case INFO_REQUEST_CANCELLED:
+                return String.format("تم إلغاء طلب المعلومات من قبل %s", actorName);
                 
             default:
                 return String.format("تم تنفيذ إجراء '%s' من قبل %s", actionType.getLabel(), actorName);

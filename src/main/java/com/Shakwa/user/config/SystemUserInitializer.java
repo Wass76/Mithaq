@@ -46,24 +46,24 @@ public class SystemUserInitializer implements CommandLineRunner {
      */
     private void deleteOldAdminUsers() {
         // Delete old admin emails
-        userRepository.findByEmail("admin@teryaq.com").ifPresent(user -> {
-            log.info("Deleting old admin user: admin@teryaq.com");
+        userRepository.findByEmail("admin@mithaq.com").ifPresent(user -> {
+            log.info("Deleting old admin user: admin@mithaq.com");
             userRepository.delete(user);
         });
         
-        userRepository.findByEmail("super.admin@teryaq.com").ifPresent(user -> {
-            log.info("Deleting old super admin user: super.admin@teryaq.com");
+        userRepository.findByEmail("super.admin@mithaq.com").ifPresent(user -> {
+            log.info("Deleting old super admin user: super.admin@mithaq.com");
             userRepository.delete(user);
         });
         
         // Also delete old lowercase versions if they exist
-        userRepository.findByEmail("admin@shakwa.com").ifPresent(user -> {
-            log.info("Deleting old admin user: admin@shakwa.com");
+        userRepository.findByEmail("admin@mithaq.com").ifPresent(user -> {
+            log.info("Deleting old admin user: admin@mithaq.com");
             userRepository.delete(user);
         });
         
-        userRepository.findByEmail("super.admin@shakwa.com").ifPresent(user -> {
-            log.info("Deleting old super admin user: super.admin@shakwa.com");
+        userRepository.findByEmail("super.admin@mithaq.com").ifPresent(user -> {
+            log.info("Deleting old super admin user: super.admin@mithaq.com");
             userRepository.delete(user);
         });
     }
@@ -77,7 +77,7 @@ public class SystemUserInitializer implements CommandLineRunner {
     }
 
     private void createSuperAdmin() {
-        if (userRepository.findByEmail("super.admin@Shakwa.com").isPresent()) {
+        if (userRepository.findByEmail("super.admin@mithaq.com").isPresent()) {
             log.info("Super admin user already exists");
             return;
         }
@@ -88,7 +88,7 @@ public class SystemUserInitializer implements CommandLineRunner {
         User superAdmin = User.builder()
                 .firstName("Wassem")
                 .lastName("Tenbakji")
-                .email("super.admin@Shakwa.com")
+                .email("super.admin@mithaq.com")
                 .password(passwordEncoder.encode(DEFAULT_ADMIN_PASSWORD))
                 .role(superAdminRole)
                 .status(UserStatus.ACTIVE)
@@ -105,7 +105,7 @@ public class SystemUserInitializer implements CommandLineRunner {
     }
 
     private void createPlatformAdmin() {
-        if (userRepository.findByEmail("admin@Shakwa.com").isPresent()) {
+        if (userRepository.findByEmail("admin@mithaq.com").isPresent()) {
             log.info("Platform admin user already exists");
             return;
         }
@@ -116,7 +116,7 @@ public class SystemUserInitializer implements CommandLineRunner {
         User platformAdmin = User.builder()
                 .firstName("platform")
                 .lastName("admin")
-                .email("admin@Shakwa.com")
+                .email("admin@mithaq.com")
                 .password(passwordEncoder.encode(DEFAULT_ADMIN_PASSWORD))
                 .role(platformAdminRole)
                 .position(

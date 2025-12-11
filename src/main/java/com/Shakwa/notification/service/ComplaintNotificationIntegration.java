@@ -134,6 +134,47 @@ public class ComplaintNotificationIntegration {
         }
     }
 
+    /**
+     * Send notification when employee requests additional information
+     */
+    public void notifyInfoRequested(Complaint complaint, com.Shakwa.complaint.entity.InformationRequest request) {
+        if (complaint.getCitizen() == null) {
+            log.warn("Complaint {} has no citizen, skipping notification", complaint.getId());
+            return;
+        }
+
+        Citizen citizen = complaint.getCitizen();
+        String title = "طلب معلومات إضافية";
+        String body = String.format("تم طلب معلومات إضافية بخصوص شكواك رقم %s: %s", 
+                complaint.getTrackingNumber(),
+                request.getRequestMessage().length() > 100 
+                    ? request.getRequestMessage().substring(0, 100) + "..." 
+                    : request.getRequestMessage());
+
+        Map<String, String> data = new HashMap<>();
+        data.put("complaintId", String.valueOf(complaint.getId()));
+        data.put("trackingNumber", complaint.getTrackingNumber());
+        data.put("requestId", String.valueOf(request.getId()));
+        data.put("type", "info_requested");
+
+        NotificationRequest notificationRequest = NotificationRequest.builder()
+                .userId(citizen.getId())
+                .title(title)
+                .body(body)
+                .data(data)
+                .notificationType("info_requested")
+                .clickAction("/complaints/" + complaint.getId())
+                .build();
+
+        try {
+            notificationService.sendNotification(notificationRequest);
+            log.info("Info request notification sent for complaint {}", complaint.getId());
+        } catch (Exception e) {
+            log.error("Failed to send info request notification for complaint {}: {}", 
+                    complaint.getId(), e.getMessage(), e);
+        }
+    }
+
     private String buildStatusChangeMessage(Complaint complaint, ComplaintStatus oldStatus, ComplaintStatus newStatus) {
         String trackingNumber = complaint.getTrackingNumber();
         

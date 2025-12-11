@@ -45,7 +45,22 @@ public enum HistoryActionType {
     /**
      * تحرير الشكوى (State-Based Lock - RESOLVED/REJECTED/CLOSED)
      */
-    UNLOCKED;
+    UNLOCKED,
+    
+    /**
+     * طلب معلومات إضافية من المواطن
+     */
+    INFO_REQUESTED,
+    
+    /**
+     * توفير معلومات إضافية من قبل المواطن
+     */
+    INFO_PROVIDED,
+    
+    /**
+     * إلغاء طلب المعلومات
+     */
+    INFO_REQUEST_CANCELLED;
 
     @JsonValue
     public String getLabel() {
