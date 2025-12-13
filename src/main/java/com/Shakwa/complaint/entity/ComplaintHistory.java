@@ -1,9 +1,7 @@
 package com.Shakwa.complaint.entity;
 
-import java.time.LocalDateTime;
-
 import com.Shakwa.complaint.Enum.HistoryActionType;
-import com.Shakwa.user.entity.User;
+import com.Shakwa.user.entity.BaseUser;
 import com.Shakwa.utils.entity.AuditedEntity;
 
 import jakarta.persistence.Column;
@@ -46,11 +44,28 @@ public class ComplaintHistory extends AuditedEntity {
     private Complaint complaint;
     
     /**
-     * المستخدم الذي قام بالإجراء (actor)
+     * معرف المستخدم الذي قام بالإجراء
      */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "actor_id", nullable = false)
-    private User actor;
+    @Column(name = "actor_id", nullable = false)
+    private Long actorId;
+    
+    /**
+     * اسم المستخدم الذي قام بالإجراء (محفوظ للعرض)
+     */
+    @Column(name = "actor_name", nullable = false)
+    private String actorName;
+    
+    /**
+     * البريد الإلكتروني للمستخدم الذي قام بالإجراء
+     */
+    @Column(name = "actor_email")
+    private String actorEmail;
+    
+    /**
+     * نوع المستخدم (USER, CITIZEN, EMPLOYEE)
+     */
+    @Column(name = "actor_type", nullable = false)
+    private String actorType;
     
     /**
      * نوع الإجراء
@@ -93,9 +108,12 @@ public class ComplaintHistory extends AuditedEntity {
      * Constructor helper for creating history entries
      * Note: createdAt is inherited from AuditedEntity and will be set automatically
      */
-    public ComplaintHistory(Complaint complaint, User actor, HistoryActionType actionType) {
+    public ComplaintHistory(Complaint complaint, BaseUser actor, HistoryActionType actionType) {
         this.complaint = complaint;
-        this.actor = actor;
+        this.actorId = actor.getId();
+        this.actorName = actor.getFirstName() + " " + actor.getLastName();
+        this.actorEmail = actor.getEmail();
+        this.actorType = actor.getClass().getSimpleName().toUpperCase();
         this.actionType = actionType;
     }
 }

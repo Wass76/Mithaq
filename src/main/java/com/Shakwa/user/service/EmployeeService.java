@@ -22,6 +22,7 @@ import com.Shakwa.user.dto.EmployeeCreateRequestDTO;
 import com.Shakwa.user.dto.EmployeeResponseDTO;
 import com.Shakwa.user.dto.EmployeeUpdateRequestDTO;
 import com.Shakwa.user.dto.UserAuthenticationResponse;
+import com.Shakwa.user.entity.BaseUser;
 import com.Shakwa.user.entity.Employee;
 import com.Shakwa.user.entity.Role;
 import com.Shakwa.user.entity.User;
@@ -35,6 +36,7 @@ import com.Shakwa.utils.exception.ResourceNotFoundException;
 import com.Shakwa.utils.exception.TooManyRequestException;
 import com.Shakwa.utils.exception.UnAuthorizedException;
 import com.Shakwa.notification.service.SecurityNotificationService;
+import com.Shakwa.utils.annotation.Audited;
 
 import io.github.resilience4j.ratelimiter.RateLimiter;
 import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
@@ -77,6 +79,7 @@ public class EmployeeService extends BaseSecurityService {
     Logger logger = Logger.getLogger(EmployeeService.class.getName());
     
     @Transactional
+    @Audited(action = "CREATE_EMPLOYEE", targetType = "EMPLOYEE", includeArgs = false)
     public EmployeeResponseDTO addEmployee(EmployeeCreateRequestDTO dto) {
         // السماح فقط لأدمن النظام بإنشاء موظفين
         if (!isAdmin()) {
@@ -110,7 +113,7 @@ public class EmployeeService extends BaseSecurityService {
     
     public List<EmployeeResponseDTO> getAllEmployeesInGovernmentAgency() {
         // Validate that the current user is a governmentAgency manager
-        User currentUser = getCurrentUser();
+        BaseUser currentUser = getCurrentUser();
         if (!(currentUser instanceof Employee)) {
             throw new UnAuthorizedException("Only governmentAgency employees can access employee data");
         }
@@ -128,6 +131,7 @@ public class EmployeeService extends BaseSecurityService {
                 .collect(java.util.stream.Collectors.toList());
     }
     
+    @Audited(action = "UPDATE_EMPLOYEE", targetType = "EMPLOYEE", includeArgs = false)
     public EmployeeResponseDTO updateEmployeeInGovernmentAgency(Long employeeId, EmployeeUpdateRequestDTO dto) {
         // Validate that the current user is a platform admin
         if (!isAdmin()) {
@@ -150,6 +154,7 @@ public class EmployeeService extends BaseSecurityService {
         return EmployeeMapper.toResponseDTO(employee);
     }
     @Transactional
+    @Audited(action = "DELETE_EMPLOYEE", targetType = "EMPLOYEE", includeArgs = false)
     public void deleteEmployeeInGovernmentAgency(Long employeeId) {
         // Validate that the current user is a platform admin
         if (!isAdmin()) {
@@ -161,10 +166,93 @@ public class EmployeeService extends BaseSecurityService {
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
         
-       
+        
         // Delete employee
         employeeRepository.delete(employee);
         logger.info("Employee deleted successfully");
+    }
+    
+    /**
+     * Disable an employee (set status to INACTIVE)
+     * Only platform admins can disable employees
+     */
+    @Transactional
+    public void disableEmployee(Long employeeId) {
+        if (!isAdmin()) {
+            throw new UnAuthorizedException("Only platform admins can disable employees");
+        }
+        
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        
+        employee.setStatus(com.Shakwa.user.Enum.UserStatus.INACTIVE);
+        employeeRepository.save(employee);
+        logger.info("Employee disabled successfully: " + employeeId);
+    }
+    
+    /**
+     * Enable an employee (set status to ACTIVE)
+     * Only platform admins can enable employees
+     */
+    @Transactional
+    public void enableEmployee(Long employeeId) {
+        if (!isAdmin()) {
+            throw new UnAuthorizedException("Only platform admins can enable employees");
+        }
+        
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        
+        employee.setStatus(com.Shakwa.user.Enum.UserStatus.ACTIVE);
+        employeeRepository.save(employee);
+        logger.info("Employee enabled successfully: " + employeeId);
+    }
+    
+    /**
+     * Update employee role
+     * Only platform admins can update employee roles
+     */
+    @Transactional
+    public void updateEmployeeRole(Long employeeId, String roleName) {
+        if (!isAdmin()) {
+            throw new UnAuthorizedException("Only platform admins can update employee roles");
+        }
+        
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        
+        Role role = roleRepository.findByName(roleName)
+                .orElseThrow(() -> new ResourceNotFoundException("Role not found: " + roleName));
+        
+        if (!role.isActive()) {
+            throw new UnAuthorizedException("Cannot assign inactive role: " + roleName);
+        }
+        
+        employee.setRole(role);
+        employeeRepository.save(employee);
+        logger.info("Employee role updated successfully: " + employeeId + " -> " + roleName);
+    }
+    
+    /**
+     * Update employee government agency
+     * Only platform admins can update employee agencies
+     */
+    @Transactional
+    public void updateEmployeeAgency(Long employeeId, GovernmentAgencyType agency) {
+        if (!isAdmin()) {
+            throw new UnAuthorizedException("Only platform admins can update employee agencies");
+        }
+        
+        if (agency == null) {
+            throw new RequestNotValidException("Government agency cannot be null");
+        }
+        
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        
+        employee.setGovernmentAgency(agency);
+        employeeRepository.save(employee);
+        logger.info("Employee agency updated successfully: " + employeeId + " -> " + agency.getLabel());
     }
     
     public Employee getEmployeeById(Long employeeId) {
@@ -181,7 +269,7 @@ public class EmployeeService extends BaseSecurityService {
      */
     public EmployeeResponseDTO getEmployeeByIdWithAuth(Long employeeId) {
         // Get current user and validate they are an employee
-        User currentUser = getCurrentUser();
+        BaseUser currentUser = getCurrentUser();
         if (!(currentUser instanceof Employee)) {
             throw new UnAuthorizedException("Only governmentAgency employees can access employee data");
         }
@@ -224,18 +312,16 @@ public class EmployeeService extends BaseSecurityService {
             .replaceAll("[^a-zA-Z0-9]", "")
             .toLowerCase();
         
-        // Clean governmentAgency name for uniqueness
-        String transliteratedGovernmentAgencyName = transliterateArabicToEnglish(governmentAgency.getLabel());
-        String cleanGovernmentAgencyName = transliteratedGovernmentAgencyName
-            .replaceAll("[^a-zA-Z0-9]", "")
-            .toLowerCase();
+        // Use the proper email code from the government agency enum
+        String agencyEmailCode = governmentAgency.getEmailCode();
         
-        // Generate base email - combining transliterated names, governmentAgency name and license suffix for uniqueness
+        // Generate email format: firstname.lastname@agency.mithaq.sy
+        // Example: tarek.tenbakji@mof.mithaq.sy
         String baseEmail;
         if (cleanLastName.isEmpty()) {
-            baseEmail = cleanFirstName + "." + cleanGovernmentAgencyName + "@gov.com";
+            baseEmail = cleanFirstName + "@" + agencyEmailCode + ".mithaq.sy";
         } else {
-            baseEmail = cleanFirstName + "." + cleanLastName + "." + cleanGovernmentAgencyName + "@gov.com";
+            baseEmail = cleanFirstName + "." + cleanLastName + "@" + agencyEmailCode + ".mithaq.sy";
         }
         
         logger.info("Generated base email for employee: " + baseEmail);
@@ -411,6 +497,7 @@ public class EmployeeService extends BaseSecurityService {
         
     }
 
+    @Audited(action = "LOGIN_EMPLOYEE", targetType = "EMPLOYEE", includeArgs = false)
     public UserAuthenticationResponse login(AuthenticationRequest request, HttpServletRequest httpServletRequest) {
         String userIp = httpServletRequest.getRemoteAddr();
         if (rateLimiterConfig.getBlockedIPs().contains(userIp)) {
@@ -469,7 +556,5 @@ public class EmployeeService extends BaseSecurityService {
         response.setIsActive(employee.getStatus() != null && employee.getStatus().name().equals("ACTIVE"));
         return response;
     }
-
-
-   
+ 
 } 

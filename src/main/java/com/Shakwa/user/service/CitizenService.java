@@ -18,6 +18,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.Shakwa.config.JwtService;
@@ -27,15 +28,16 @@ import com.Shakwa.user.dto.CitizenDTORequest;
 import com.Shakwa.user.dto.CitizenDTOResponse;
 import com.Shakwa.user.dto.PaginationDTO;
 import com.Shakwa.user.dto.UserAuthenticationResponse;
+import com.Shakwa.user.entity.BaseUser;
 import com.Shakwa.user.entity.Citizen;
 import com.Shakwa.user.entity.Employee;
 import com.Shakwa.user.entity.OtpVerification;
-import com.Shakwa.user.entity.User;
 import com.Shakwa.user.mapper.CitizenMapper;
 import com.Shakwa.user.repository.CitizenRepo;
 import com.Shakwa.user.repository.OtpVerificationRepository;
 import com.Shakwa.user.repository.UserRepository;
 import com.Shakwa.notification.service.SecurityNotificationService;
+import com.Shakwa.utils.annotation.Audited;
 
 import io.github.resilience4j.ratelimiter.RateLimiter;
 import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
@@ -85,7 +87,7 @@ public class CitizenService extends BaseSecurityService {
     }
 
     public PaginationDTO<CitizenDTOResponse> getAllCitizens(int page, int size) {
-        User currentUser = getCurrentUser();
+        BaseUser currentUser = getCurrentUser();
         // السماح للأدمن والموظفين بالوصول
         if (!isAdmin() && !(currentUser instanceof Employee)) {
             throw new UnAuthorizedException("Only platform admins and governmentAgency employees can access citizens");
@@ -98,7 +100,7 @@ public class CitizenService extends BaseSecurityService {
     }
     
     public CitizenDTOResponse getCitizenById(Long id) {
-        User currentUser = getCurrentUser();
+        BaseUser currentUser = getCurrentUser();
         // السماح للأدمن والموظفين بالوصول
         if (!isAdmin() && !(currentUser instanceof Employee)) {
             throw new UnAuthorizedException("Only platform admins and governmentAgency employees can access citizens");
@@ -114,7 +116,7 @@ public class CitizenService extends BaseSecurityService {
             throw new ConflictException("Citizen name cannot be empty");
         }
         
-        User currentUser = getCurrentUser();
+        BaseUser currentUser = getCurrentUser();
         // السماح للأدمن والموظفين بالوصول
         if (!isAdmin() && !(currentUser instanceof Employee)) {
             throw new UnAuthorizedException("Only platform admins and governmentAgency employees can access citizens");
@@ -126,7 +128,7 @@ public class CitizenService extends BaseSecurityService {
     }
 
     public PaginationDTO<CitizenDTOResponse> searchCitizensByName(String name, int page, int size) {
-        User currentUser = getCurrentUser();
+        BaseUser currentUser = getCurrentUser();
         // السماح للأدمن والموظفين بالوصول
         if (!isAdmin() && !(currentUser instanceof Employee)) {
             throw new UnAuthorizedException("Only platform admins and governmentAgency employees can access citizens");
@@ -145,10 +147,11 @@ public class CitizenService extends BaseSecurityService {
         return PaginationDTO.of(dtoPage);
     }
 
+    @Audited(action = "CREATE_CITIZEN", targetType = "CITIZEN", includeArgs = false)
     public CitizenDTOResponse createCitizen(CitizenDTORequest dto) {
         validateCitizenRequest(dto);
         
-        User currentUser = getCurrentUser();
+        BaseUser currentUser = getCurrentUser();
         // السماح للأدمن والموظفين بإنشاء المواطنين
         if (!isAdmin() && !(currentUser instanceof Employee)) {
             throw new UnAuthorizedException("Only platform admins and governmentAgency employees can create citizens");
@@ -174,10 +177,11 @@ public class CitizenService extends BaseSecurityService {
         return citizenMapper.toResponse(citizen);
     }
 
+    @Audited(action = "UPDATE_CITIZEN", targetType = "CITIZEN", includeArgs = false)
     public CitizenDTOResponse updateCitizen(Long id, CitizenDTORequest dto) {
         validateCitizenRequest(dto);
         
-        User currentUser = getCurrentUser();
+        BaseUser currentUser = getCurrentUser();
         // السماح للأدمن والموظفين بتحديث المواطنين
         if (!isAdmin() && !(currentUser instanceof Employee)) {
             throw new UnAuthorizedException("Only platform admins and governmentAgency employees can update citizens");
@@ -207,8 +211,9 @@ public class CitizenService extends BaseSecurityService {
         return citizenMapper.toResponse(citizen);
     }
 
+    @Audited(action = "DELETE_CITIZEN", targetType = "CITIZEN", includeArgs = false)
     public void deleteCitizen(Long id) {
-        User currentUser = getCurrentUser();
+        BaseUser currentUser = getCurrentUser();
         // السماح للأدمن والموظفين بحذف المواطنين
         if (!isAdmin() && !(currentUser instanceof Employee)) {
             throw new UnAuthorizedException("Only platform admins and governmentAgency employees can delete citizens");
@@ -228,10 +233,47 @@ public class CitizenService extends BaseSecurityService {
         
         citizenRepo.deleteById(id);
     }
+    
+    /**
+     * Suspend a citizen (set status to INACTIVE)
+     * Only platform admins can suspend citizens
+     */
+    @Transactional
+    public void suspendCitizen(Long citizenId, String reason) {
+        if (!isAdmin()) {
+            throw new UnAuthorizedException("Only platform admins can suspend citizens");
+        }
+        
+        Citizen citizen = citizenRepo.findById(citizenId)
+                .orElseThrow(() -> new EntityNotFoundException("Citizen not found with ID: " + citizenId));
+        
+        citizen.setStatus(UserStatus.INACTIVE);
+        citizenRepo.save(citizen);
+        logger.info("Citizen suspended: {} - Reason: {}", citizenId, reason);
+    }
+    
+    /**
+     * Unsuspend a citizen (set status to ACTIVE)
+     * Only platform admins can unsuspend citizens
+     */
+    @Transactional
+    public void unsuspendCitizen(Long citizenId) {
+        if (!isAdmin()) {
+            throw new UnAuthorizedException("Only platform admins can unsuspend citizens");
+        }
+        
+        Citizen citizen = citizenRepo.findById(citizenId)
+                .orElseThrow(() -> new EntityNotFoundException("Citizen not found with ID: " + citizenId));
+        
+        citizen.setStatus(UserStatus.ACTIVE);
+        citizenRepo.save(citizen);
+        logger.info("Citizen unsuspended: {}", citizenId);
+    }
 
     /**
      * تسجيل مواطن جديد (Register) - يرسل OTP للإيميل
      */
+    @Audited(action = "REGISTER_CITIZEN", targetType = "CITIZEN", includeArgs = false)
     public CitizenDTOResponse register(CitizenDTORequest dto) {
         validateCitizenRegistrationRequest(dto);
 
@@ -255,9 +297,9 @@ public class CitizenService extends BaseSecurityService {
         saveOtpVerification(dto.getEmail(), otpCode);
         logger.info("OTP saved to database for email: {}", dto.getEmail());
         
-        // إرسال OTP بالبريد الإلكتروني (أو طباعته في logs في وضع التطوير)
-        emailService.sendOtpEmail(dto.getEmail(), otpCode);
-        logger.info("OTP email process completed for email: {}", dto.getEmail());
+        // إرسال OTP بالبريد الإلكتروني بشكل غير متزامن (أو طباعته في logs في وضع التطوير)
+        emailService.sendOtpEmailFireAndForget(dto.getEmail(), otpCode);
+        logger.info("OTP email dispatched asynchronously for email: {}", dto.getEmail());
         
         // إرجاع response مع OTP (خاصة في وضع التطوير)
         CitizenDTOResponse response = citizenMapper.toResponse(citizen);
@@ -320,10 +362,10 @@ public class CitizenService extends BaseSecurityService {
         // حذف OTP القديم إن وجد
         otpRepository.deleteByEmail(email);
         
-        // إنشاء وإرسال OTP جديد
+        // إنشاء وإرسال OTP جديد بشكل غير متزامن
         String otpCode = generateOtp();
         saveOtpVerification(email, otpCode);
-        emailService.sendOtpEmail(email, otpCode);
+        emailService.sendOtpEmailFireAndForget(email, otpCode);
     }
 
     /**
@@ -352,6 +394,7 @@ public class CitizenService extends BaseSecurityService {
     /**
      * تسجيل دخول المواطن (Login)
      */
+    @Audited(action = "LOGIN_CITIZEN", targetType = "CITIZEN", includeArgs = false)
     public UserAuthenticationResponse login(AuthenticationRequest request, HttpServletRequest httpServletRequest) {
         String userIp = httpServletRequest.getRemoteAddr();
         if (rateLimiterConfig.getBlockedIPs().contains(userIp)) {

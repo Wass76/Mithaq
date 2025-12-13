@@ -1,4 +1,4 @@
-package com.Shakwa.complaint.converter;
+package com.Shakwa.utils.converter;
 
 import com.Shakwa.complaint.Enum.ComplaintStatus;
 import org.springframework.core.convert.converter.Converter;
@@ -49,4 +49,3 @@ public class StringToComplaintStatusConverter implements Converter<String, Compl
         }
     }
 }
-

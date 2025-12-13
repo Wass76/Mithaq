@@ -2,7 +2,7 @@ package com.Shakwa.complaint.entity;
 
 import java.time.LocalDateTime;
 
-import com.Shakwa.user.entity.User;
+import com.Shakwa.user.entity.BaseUser;
 import com.Shakwa.utils.entity.BaseEntity;
 
 import jakarta.persistence.Column;
@@ -53,12 +53,37 @@ public class ComplaintAttachment extends BaseEntity {
     @Column(name = "checksum", nullable = false, length = 128)
     private String checksum;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "uploaded_by")
-    private User uploadedBy;
+    /**
+     * معرف المستخدم الذي رفع المرفق
+     */
+    @Column(name = "uploaded_by_id")
+    private Long uploadedById;
+    
+    /**
+     * اسم المستخدم الذي رفع المرفق (محفوظ للعرض)
+     */
+    @Column(name = "uploaded_by_name")
+    private String uploadedByName;
+    
+    /**
+     * نوع المستخدم (USER, CITIZEN, EMPLOYEE)
+     */
+    @Column(name = "uploaded_by_type")
+    private String uploadedByType;
 
     @Column(name = "uploaded_at", nullable = false)
     private LocalDateTime uploadedAt;
+    
+    /**
+     * Helper method to set uploader info from BaseUser
+     */
+    public void setUploadedBy(BaseUser user) {
+        if (user != null) {
+            this.uploadedById = user.getId();
+            this.uploadedByName = user.getFirstName() + " " + user.getLastName();
+            this.uploadedByType = user.getClass().getSimpleName().toUpperCase();
+        }
+    }
 }
 
 

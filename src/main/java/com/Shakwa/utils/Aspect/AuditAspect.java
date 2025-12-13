@@ -17,21 +17,41 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import com.Shakwa.utils.annotation.Audited;
+import com.Shakwa.audit.service.AuditService;
+import com.Shakwa.user.entity.BaseUser;
+import com.Shakwa.user.entity.User;
+import com.Shakwa.user.entity.Citizen;
+import com.Shakwa.user.entity.Employee;
+import com.Shakwa.user.repository.UserRepository;
+import com.Shakwa.user.repository.CitizenRepo;
+import com.Shakwa.user.repository.EmployeeRepository;
 
 import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * Aspect for automatic audit event recording
- * Bridges Feature 04 by auto-recording audit events for methods annotated with @Audited
- * 
- * Note: This is a placeholder that logs audit events. 
- * When Feature 04 (AuditService) is implemented, this will be updated to call AuditService.record()
+ * Automatically records audit events for methods annotated with @Audited
  */
 @Aspect
 @Component
 public class AuditAspect {
 
     private static final Logger logger = LoggerFactory.getLogger(AuditAspect.class);
+    
+    private final AuditService auditService;
+    private final UserRepository userRepository;
+    private final CitizenRepo citizenRepo;
+    private final EmployeeRepository employeeRepository;
+    
+    public AuditAspect(AuditService auditService,
+                      UserRepository userRepository,
+                      CitizenRepo citizenRepo,
+                      EmployeeRepository employeeRepository) {
+        this.auditService = auditService;
+        this.userRepository = userRepository;
+        this.citizenRepo = citizenRepo;
+        this.employeeRepository = employeeRepository;
+    }
 
     @AfterReturning(
             pointcut = "@annotation(audited)",
@@ -45,13 +65,19 @@ public class AuditAspect {
             Long targetId = extractTargetId(result, joinPoint.getArgs());
             String status = "SUCCESS";
             Map<String, Object> details = buildDetails(joinPoint, result, audited.includeArgs());
-
-            logAuditEvent(action, targetType, targetId, status, details);
             
-            // TODO: When Feature 04 (AuditService) is implemented, call:
-            // auditService.record(action, targetType, targetId, status, details);
+            Long actorId = getCurrentUserId();
+            String ipAddress = getClientIpAddress();
+
+            // Record in audit service
+            if (actorId != null) {
+                auditService.record(action, targetType, targetId, actorId, status, details, ipAddress);
+            } else {
+                logger.warn("Cannot record audit event: no authenticated user found");
+            }
             
         } catch (Exception e) {
+            // Don't break the main flow if audit fails
             logger.error("Error recording audit event", e);
         }
     }
@@ -70,24 +96,53 @@ public class AuditAspect {
             Map<String, Object> details = buildDetails(joinPoint, null, audited.includeArgs());
             details.put("error", exception.getClass().getSimpleName());
             details.put("errorMessage", exception.getMessage());
-
-            logAuditEvent(action, targetType, targetId, status, details);
             
-            // TODO: When Feature 04 (AuditService) is implemented, call:
-            // auditService.record(action, targetType, targetId, status, details);
+            Long actorId = getCurrentUserId();
+            String ipAddress = getClientIpAddress();
+
+            // Record in audit service
+            if (actorId != null) {
+                auditService.record(action, targetType, targetId, actorId, status, details, ipAddress);
+            } else {
+                logger.warn("Cannot record audit event: no authenticated user found");
+            }
             
         } catch (Exception e) {
+            // Don't break the main flow if audit fails
             logger.error("Error recording audit event", e);
         }
     }
 
-    private void logAuditEvent(String action, String targetType, Long targetId, 
-                              String status, Map<String, Object> details) {
-        String user = getCurrentUser();
-        String ipAddress = getClientIpAddress();
-        
-        logger.info("AUDIT | Action: {} | Target: {}[{}] | User: {} | IP: {} | Status: {} | Details: {}", 
-            action, targetType, targetId, user, ipAddress, status, details);
+    private Long getCurrentUserId() {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.isAuthenticated() && 
+                !"anonymousUser".equals(authentication.getPrincipal())) {
+                
+                String email = authentication.getName();
+                
+                // Try User (Platform Admins) first
+                BaseUser user = userRepository.findByEmail(email).orElse(null);
+                if (user != null) {
+                    return user.getId();
+                }
+                
+                // Try Citizen
+                user = citizenRepo.findByEmail(email).orElse(null);
+                if (user != null) {
+                    return user.getId();
+                }
+                
+                // Try Employee
+                user = employeeRepository.findByEmail(email).orElse(null);
+                if (user != null) {
+                    return user.getId();
+                }
+            }
+        } catch (Exception e) {
+            logger.debug("Could not get current user ID: {}", e.getMessage());
+        }
+        return null;
     }
 
     private String inferTargetType(JoinPoint joinPoint) {
@@ -103,24 +158,60 @@ public class AuditAspect {
     }
 
     private Long extractTargetId(Object result, Object[] args) {
-        // Try to extract ID from result
+        // Try to extract ID from result (DTO or Entity)
         if (result != null) {
             try {
+                // Try getId() method
                 java.lang.reflect.Method getIdMethod = result.getClass().getMethod("getId");
                 Object id = getIdMethod.invoke(result);
                 if (id instanceof Long) {
                     return (Long) id;
+                }
+            } catch (NoSuchMethodException e) {
+                // Try alternative methods for DTOs
+                try {
+                    // Try getUserId() for user-related DTOs
+                    java.lang.reflect.Method getUserIdMethod = result.getClass().getMethod("getUserId");
+                    Object id = getUserIdMethod.invoke(result);
+                    if (id instanceof Long) {
+                        return (Long) id;
+                    }
+                } catch (Exception ex) {
+                    // Try getCitizenId() or getEmployeeId()
+                    try {
+                        java.lang.reflect.Method getCitizenIdMethod = result.getClass().getMethod("getCitizenId");
+                        Object id = getCitizenIdMethod.invoke(result);
+                        if (id instanceof Long) {
+                            return (Long) id;
+                        }
+                    } catch (Exception ex2) {
+                        try {
+                            java.lang.reflect.Method getEmployeeIdMethod = result.getClass().getMethod("getEmployeeId");
+                            Object id = getEmployeeIdMethod.invoke(result);
+                            if (id instanceof Long) {
+                                return (Long) id;
+                            }
+                        } catch (Exception ex3) {
+                            // Ignore
+                        }
+                    }
                 }
             } catch (Exception e) {
                 // Ignore
             }
         }
         
-        // Try to extract ID from first argument (usually the ID parameter)
+        // Try to extract ID from arguments
         if (args != null && args.length > 0) {
+            // Check first argument (usually the ID parameter)
             Object firstArg = args[0];
             if (firstArg instanceof Long) {
                 return (Long) firstArg;
+            }
+            
+            // Check second argument if first is not ID (e.g., updateUser(Long id, UserRequestDTO dto))
+            if (args.length > 1 && args[0] instanceof Long) {
+                return (Long) args[0];
             }
         }
         
@@ -157,19 +248,6 @@ public class AuditAspect {
         }
         
         return obj;
-    }
-
-    private String getCurrentUser() {
-        try {
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication != null && authentication.isAuthenticated() && 
-                !"anonymousUser".equals(authentication.getPrincipal())) {
-                return authentication.getName();
-            }
-        } catch (Exception e) {
-            // Ignore
-        }
-        return "anonymous";
     }
 
     private String getClientIpAddress() {

@@ -1,6 +1,6 @@
 package com.Shakwa.notification.entity;
 
-import com.Shakwa.user.entity.User;
+import com.Shakwa.user.entity.BaseUser;
 import com.Shakwa.utils.entity.AuditedEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -25,9 +25,17 @@ public class Notification extends AuditedEntity {
         return "notification_id_seq";
     }
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    /**
+     * ID of the user to receive the notification
+     */
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+    
+    /**
+     * Type of user (USER, CITIZEN, EMPLOYEE)
+     */
+    @Column(name = "user_type", nullable = false)
+    private String userType;
 
     @Column(name = "title", nullable = false, length = 255)
     private String title;

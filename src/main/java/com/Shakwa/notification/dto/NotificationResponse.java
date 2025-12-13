@@ -31,7 +31,7 @@ public class NotificationResponse {
     public static NotificationResponse fromEntity(Notification notification) {
         return NotificationResponse.builder()
                 .id(notification.getId())
-                .userId(notification.getUser().getId())
+                .userId(notification.getUserId())
                 .title(notification.getTitle())
                 .body(notification.getBody())
                 .data(notification.getData())

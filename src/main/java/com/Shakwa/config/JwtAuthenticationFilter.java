@@ -1,6 +1,6 @@
 package com.Shakwa.config;
 
-import com.Shakwa.utils.exception.TokenExpiredException;
+import com.Shakwa.user.service.TokenBlacklistService;
 import com.Shakwa.utils.restExceptionHanding.ApiException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -27,9 +27,9 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private final JwtService jwtService ;
-
-    private final UserDetailsService userDetailsService; // final
+    private final JwtService jwtService;
+    private final UserDetailsService userDetailsService;
+    private final TokenBlacklistService tokenBlacklistService;
     @Override
     protected void doFilterInternal(
            @NonNull HttpServletRequest request,
@@ -45,6 +45,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         jwt = authHeader.substring(7);
         try {
+            // Check if token is blacklisted (user has logged out)
+            if (tokenBlacklistService.isTokenBlacklisted(jwt)) {
+                handleTokenExpiredException(response, "Token has been invalidated");
+                return;
+            }
+            
             userEmail = jwtService.extractUsername(jwt);
             if(userEmail != null && SecurityContextHolder.getContext().getAuthentication()==null){
                 UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
@@ -62,18 +68,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         } catch (Exception e) {
             // If token parsing fails due to expiration or other issues, return 401 response
-            handleTokenExpiredException(response);
+            handleTokenExpiredException(response, "Token expired");
             return;
         }
         filterChain.doFilter(request,response);
     }
     
-    private void handleTokenExpiredException(HttpServletResponse response) throws IOException {
+    private void handleTokenExpiredException(HttpServletResponse response, String message) throws IOException {
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         
         ApiException apiException = new ApiException(
-                "Token expired",
+                message,
                 HttpStatus.UNAUTHORIZED,
                 LocalDateTime.now()
         );

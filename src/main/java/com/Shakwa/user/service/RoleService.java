@@ -11,6 +11,7 @@ import com.Shakwa.user.entity.Role;
 import com.Shakwa.user.repository.PermissionRepository;
 import com.Shakwa.user.repository.RoleRepository;
 import com.Shakwa.utils.exception.ResourceNotFoundException;
+import com.Shakwa.utils.annotation.Audited;
 
 import java.util.List;
 import java.util.Optional;
@@ -34,6 +35,7 @@ public class RoleService {
     }
 
     @Transactional
+    @Audited(action = "CREATE_ROLE", targetType = "ROLE", includeArgs = false)
     public Role createRole(RoleRequestDTO requestDTO) {
         if (roleRepository.existsByName(requestDTO.getName())) {
             throw new IllegalArgumentException("Role with name " + requestDTO.getName() + " already exists");
@@ -60,6 +62,7 @@ public class RoleService {
     }
 
     @Transactional
+    @Audited(action = "UPDATE_ROLE", targetType = "ROLE", includeArgs = false)
     public Role updateRole(Long id, RoleRequestDTO roleDetails) {
         Role role = getRoleById(id);
         
@@ -80,6 +83,7 @@ public class RoleService {
     }
 
     @Transactional
+    @Audited(action = "DELETE_ROLE", targetType = "ROLE", includeArgs = false)
     public void deleteRole(Long id) {
         Role role = getRoleById(id);
         
@@ -91,6 +95,7 @@ public class RoleService {
     }
 
     @Transactional
+    @Audited(action = "UPDATE_ROLE_PERMISSIONS", targetType = "ROLE", includeArgs = false)
     public Role updateRolePermissions(Long roleId, Set<Long> permissionIds) {
         Role role = getRoleById(roleId);
         

@@ -3,6 +3,7 @@ package com.Shakwa.user.service;
 import com.Shakwa.user.repository.EmployeeRepository;
 import org.springframework.stereotype.Service;
 
+import com.Shakwa.user.entity.BaseUser;
 import com.Shakwa.user.entity.User;
 import com.Shakwa.user.repository.CitizenRepo;
 import com.Shakwa.user.repository.UserRepository;
@@ -41,7 +42,7 @@ public class AuthorizationService extends BaseSecurityService {
      * @return true if the user has access
      */
 //    public boolean hasAccessToLead(Long leadId, String operation) {
-//        User currentUser = getCurrentUser();
+//        BaseUser currentUser = getCurrentUser();
 //
 //        // Platform admin has full access
 //        if (isAdmin()) {
@@ -70,7 +71,7 @@ public class AuthorizationService extends BaseSecurityService {
      * @return true if the user has access
      */
 //    public boolean hasAccessToDealerContact(Long contactId, String operation) {
-//        User currentUser = getCurrentUser();
+//        BaseUser currentUser = getCurrentUser();
 //
 //        // Platform admin has full access
 //        if (isAdmin()) {
@@ -99,7 +100,7 @@ public class AuthorizationService extends BaseSecurityService {
      * @return true if the user has access
      */
 //    public boolean hasAccessToDealer(Long dealerId, String operation) {
-//        User currentUser = getCurrentUser();
+//        BaseUser currentUser = getCurrentUser();
 //
 //        // Platform admin has full access
 //        if (isAdmin()) {
@@ -126,7 +127,7 @@ public class AuthorizationService extends BaseSecurityService {
      * @return true if the user has permission
      */
 //    public boolean hasContactConversionAccess() {
-//        User currentUser = getCurrentUser();
+//        BaseUser currentUser = getCurrentUser();
 //        return hasRole("PLATFORM_ADMIN") || hasRole("SALES_MANAGER") || hasRole("SALES_AGENT");
 //    }
 
@@ -135,7 +136,7 @@ public class AuthorizationService extends BaseSecurityService {
      * @return true if the user has permission
      */
 //    public boolean hasDealerConversionAccess() {
-//        User currentUser = getCurrentUser();
+//        BaseUser currentUser = getCurrentUser();
 //        return hasRole("PLATFORM_ADMIN") || hasRole("SALES_MANAGER") || hasRole("SALES_AGENT");
 //    }
 
@@ -145,7 +146,7 @@ public class AuthorizationService extends BaseSecurityService {
      * @return true if the current user is the same as the requested user
      */
     public boolean isCurrentUser(Long userId) {
-        User currentUser = getCurrentUser();
+        BaseUser currentUser = getCurrentUser();
         return currentUser.getId().equals(userId);
     }
 } 

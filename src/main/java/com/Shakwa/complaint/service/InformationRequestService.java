@@ -384,7 +384,7 @@ public class InformationRequestService extends BaseSecurityService {
                 .attachments(attachmentDTOs)
                 .build();
     }
-
+    
     /**
      * Store attachments and return list of created ComplaintAttachment entities
      */

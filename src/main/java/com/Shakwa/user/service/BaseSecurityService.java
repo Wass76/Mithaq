@@ -6,6 +6,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import com.Shakwa.user.Enum.GovernmentAgencyType;
+import com.Shakwa.user.entity.BaseUser;
 import com.Shakwa.user.entity.Citizen;
 import com.Shakwa.user.entity.Employee;
 import com.Shakwa.user.entity.User;
@@ -19,7 +20,7 @@ public abstract class BaseSecurityService {
 
     protected final UserRepository userRepository;
     protected final CitizenRepo citizenRepo;
-    private final EmployeeRepository employeeRepository;
+    protected final EmployeeRepository employeeRepository;
 
     protected BaseSecurityService(UserRepository userRepository, CitizenRepo citizenRepo, EmployeeRepository employeeRepository) {
         this.userRepository = userRepository;
@@ -29,25 +30,34 @@ public abstract class BaseSecurityService {
 
     /**
      * 
-     * Gets the currently authenticated user
-     * @return The current user
+     * Gets the currently authenticated user (can be User, Citizen, or Employee)
+     * @return The current user as BaseUser
      * @throws ResourceNotFoundException if the user is not found
      */
-    protected User getCurrentUser() {
+    protected BaseUser getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new ResourceNotFoundException("User not authenticated");
         }
 
-        User user = userRepository.findByEmail(authentication.getName()).orElse(null);
-        if (user == null) {
-            user = citizenRepo.findByEmail(authentication.getName()).orElse(null);
+        String email = authentication.getName();
+        
+        // Try User (Platform Admins) first
+        BaseUser user = userRepository.findByEmail(email).orElse(null);
+        if (user != null) {
+            return user;
         }
-        if (user == null) {
-            user = employeeRepository.findByEmail(authentication.getName()).orElseThrow(
-                    ()-> new ResourceNotFoundException("User isn't employee and not citizen and it's not found")
-            );
+        
+        // Try Citizen
+        user = citizenRepo.findByEmail(email).orElse(null);
+        if (user != null) {
+            return user;
         }
+        
+        // Try Employee
+        user = employeeRepository.findByEmail(email).orElseThrow(
+                ()-> new ResourceNotFoundException("User not found: " + email)
+        );
         return user;
     }
 
@@ -56,8 +66,8 @@ public abstract class BaseSecurityService {
      * @return true if the user is a platform admin
      */
     protected boolean isAdmin() {
-        User currentUser = getCurrentUser();
-        return currentUser.getRole().getName().equals("PLATFORM_ADMIN");
+        BaseUser currentUser = getCurrentUser();
+        return currentUser.getRole() != null && currentUser.getRole().getName().equals("PLATFORM_ADMIN");
     }
 
     /**
@@ -66,8 +76,8 @@ public abstract class BaseSecurityService {
      * @return true if the user has the specified role
      */
     protected boolean hasRole(String roleName) {
-        User currentUser = getCurrentUser();
-        return currentUser.getRole().getName().equals(roleName);
+        BaseUser currentUser = getCurrentUser();
+        return currentUser.getRole() != null && currentUser.getRole().getName().equals(roleName);
     }
 
     /**
@@ -76,7 +86,7 @@ public abstract class BaseSecurityService {
      * @throws UnAuthorizedException if user is not an employee or has no governmentAgency
      */
     protected GovernmentAgencyType getCurrentUserGovernmentAgency() {
-        User currentUser = getCurrentUser();
+        BaseUser currentUser = getCurrentUser();
         if (currentUser instanceof Employee employee) {
             if (employee.getGovernmentAgency() == null) {
                 throw new UnAuthorizedException("User is not associated with any governmentAgency");
@@ -116,7 +126,7 @@ public abstract class BaseSecurityService {
      */
     protected boolean isCurrentUserEmployee() {
         try {
-            User currentUser = getCurrentUser();
+            BaseUser currentUser = getCurrentUser();
             return currentUser instanceof Employee;
         } catch (Exception e) {
             return false;

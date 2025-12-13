@@ -40,9 +40,9 @@ import com.Shakwa.complaint.storage.AttachmentStorageService;
 import com.Shakwa.complaint.storage.AttachmentStorageService.StoredFile;
 import com.Shakwa.user.Enum.GovernmentAgencyType;
 import com.Shakwa.user.dto.PaginationDTO;
+import com.Shakwa.user.entity.BaseUser;
 import com.Shakwa.user.entity.Citizen;
 import com.Shakwa.user.entity.Employee;
-import com.Shakwa.user.entity.User;
 import com.Shakwa.user.repository.CitizenRepo;
 import com.Shakwa.user.repository.UserRepository;
 import com.Shakwa.user.service.BaseSecurityService;
@@ -77,6 +77,7 @@ public class ComplaintService extends BaseSecurityService {
 
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of("image/png","image/jpg", "image/jpeg", "application/pdf");
     private static final long MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+    
     private static final long MAX_TOTAL_BYTES = 50 * 1024 * 1024; // 50 MB
     private static final int MAX_FILES_PER_OPERATION = 10;
     private final EmployeeRepository employeeRepository;
@@ -167,7 +168,7 @@ public class ComplaintService extends BaseSecurityService {
         // إذا كان موظف، إرجاع شكاوى جهته الحكومية فقط
         else {
             try {
-                User currentUser = getCurrentUser();
+                BaseUser currentUser = getCurrentUser();
                 if (currentUser instanceof Employee employee) {
                     if (employee.getGovernmentAgency() == null) {
                         throw new UnAuthorizedException("Employee is not associated with any government agency");
@@ -206,7 +207,7 @@ public class ComplaintService extends BaseSecurityService {
 
         // إذا كان موظف، التحقق من أن الشكوى تخص جهته الحكومية
         try {
-            User currentUser = getCurrentUser();
+            BaseUser currentUser = getCurrentUser();
             if (currentUser instanceof Employee employee) {
                 if (employee.getGovernmentAgency() == null || 
                     !employee.getGovernmentAgency().equals(complaint.getGovernmentAgency())) {
@@ -221,12 +222,45 @@ public class ComplaintService extends BaseSecurityService {
     }
 
     /**
+     * الحصول على شكوى بالرقم المرجعي (Tracking Number)
+     * يمكن للمواطن البحث عن شكواه باستخدام الرقم المرجعي
+     */
+    public ComplaintDTOResponse getComplaintByTrackingNumber(String trackingNumber) {
+        Complaint complaint = complaintRepository.findByTrackingNumber(trackingNumber)
+                .orElseThrow(() -> new EntityNotFoundException("Complaint not found with tracking number: " + trackingNumber));
+
+        // إذا كان المستخدم الحالي مواطن، التحقق من أن الشكوى تخصه
+        if (isCurrentUserCitizen()) {
+            Citizen currentCitizen = getCurrentCitizen();
+            if (!complaint.getCitizen().getId().equals(currentCitizen.getId())) {
+                throw new UnAuthorizedException("You don't have access to this complaint");
+            }
+        }
+        // إذا كان موظف، التحقق من أن الشكوى تخص جهته الحكومية
+        else {
+            try {
+                BaseUser currentUser = getCurrentUser();
+                if (currentUser instanceof Employee employee) {
+                    if (employee.getGovernmentAgency() == null || 
+                        !employee.getGovernmentAgency().equals(complaint.getGovernmentAgency())) {
+                        throw new UnAuthorizedException("You don't have access to this complaint");
+                    }
+                }
+            } catch (Exception e) {
+                logger.warn("Could not verify user access, allowing admin access: {}", e.getMessage());
+            }
+        }
+
+        return complaintMapper.toResponse(complaint);
+    }
+
+    /**
      * الحصول على شكاوى مواطن محدد
      * Caching handled at repository level.
      */
     public PaginationDTO<ComplaintDTOResponse> getComplaintsByCitizenId(Long citizenId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        User currentUser = getCurrentUser();
+        BaseUser currentUser = getCurrentUser();
         Page<Complaint> complaintPage;
 
         // التحقق من الصلاحيات
@@ -250,7 +284,7 @@ public class ComplaintService extends BaseSecurityService {
      */
     public PaginationDTO<ComplaintDTOResponse> getComplaintsByStatus(ComplaintStatus status, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        User currentUser = getCurrentUser();
+        BaseUser currentUser = getCurrentUser();
         Page<Complaint> complaintPage;
 
         if (currentUser instanceof Employee employee) {
@@ -273,10 +307,10 @@ public class ComplaintService extends BaseSecurityService {
      * Cache eviction handled at repository level.
      */
     @Audited(action = "UPDATE_COMPLAINT", targetType = "COMPLAINT", includeArgs = false)
-    public ComplaintDTOResponse updateComplaint(Long id, ComplaintDTORequest dto) {
+    public ComplaintDTOResponse updateComplaint(Long id, ComplaintDTORequest dto, List<MultipartFile> files) {
         validateComplaintRequest(dto);
 
-        User currentUser = getCurrentUser();
+        BaseUser currentUser = getCurrentUser();
         if (!(currentUser instanceof Employee)) {
             throw new UnAuthorizedException("Only employees can update complaints");
         }
@@ -318,6 +352,12 @@ public class ComplaintService extends BaseSecurityService {
             if (dto.getLocation() != null && !dto.getLocation().equals(oldLocation)) {
                 complaintHistoryService.recordFieldUpdate(complaint, currentUser, "location", oldLocation, dto.getLocation());
             }
+
+            // Handle file attachments if provided
+            if (files != null && !files.isEmpty()) {
+                storeAttachments(complaint, files, currentUser);
+                complaint = complaintRepository.save(complaint);
+            }
         } catch (jakarta.persistence.OptimisticLockException e) {
             throw new OptimisticLockException(
                 "تم تعديل هذه الشكوى من قبل موظف آخر. يرجى تحديث الصفحة والمحاولة مرة أخرى."
@@ -338,7 +378,7 @@ public class ComplaintService extends BaseSecurityService {
             throw new ConflictException("Response text is required");
         }
 
-        User currentUser = getCurrentUser();
+        BaseUser currentUser = getCurrentUser();
         if (!(currentUser instanceof Employee)) {
             throw new UnAuthorizedException("Only employees can respond to complaints");
         }
@@ -403,7 +443,7 @@ public class ComplaintService extends BaseSecurityService {
      * Cache eviction handled at repository level.
      */
     public void deleteComplaint(Long id) {
-        User currentUser = getCurrentUser();
+        BaseUser currentUser = getCurrentUser();
         Complaint complaint = complaintRepository.findByIdWithAttachments(id)
                 .orElseThrow(() -> new EntityNotFoundException("Complaint not found with ID: " + id));
 
@@ -429,7 +469,7 @@ public class ComplaintService extends BaseSecurityService {
      */
     public PaginationDTO<ComplaintDTOResponse> getComplaintsByType(ComplaintType complaintType, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        User currentUser = getCurrentUser();
+        BaseUser currentUser = getCurrentUser();
         Page<Complaint> complaintPage;
 
         if (currentUser instanceof Employee employee) {
@@ -452,7 +492,7 @@ public class ComplaintService extends BaseSecurityService {
      */
     public PaginationDTO<ComplaintDTOResponse> getComplaintsByGovernorate(Governorate governorate, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        User currentUser = getCurrentUser();
+        BaseUser currentUser = getCurrentUser();
         Page<Complaint> complaintPage;
 
         if (currentUser instanceof Employee employee) {
@@ -520,6 +560,19 @@ public class ComplaintService extends BaseSecurityService {
         Specification<Complaint> spec = (root, query, cb) -> {
             Predicate predicate = cb.conjunction();
 
+            // التحقق من الصلاحيات أولاً - Security First Principle
+            BaseUser currentUser = getCurrentUser();
+            if (currentUser instanceof Employee employee) {
+                if (employee.getGovernmentAgency() != null) {
+                    // الموظف يرى فقط شكاوى جهته الحكومية
+                    predicate = cb.and(predicate, cb.equal(root.get("governmentAgency"), employee.getGovernmentAgency()));
+                }
+            } else if (isCurrentUserCitizen()) {
+                // المواطن يرى فقط شكاويه
+                Citizen currentCitizen = getCurrentCitizen();
+                predicate = cb.and(predicate, cb.equal(root.get("citizen").get("id"), currentCitizen.getId()));
+            }
+
             // فلترة حسب الحالة
             if (status != null) {
                 predicate = cb.and(predicate, cb.equal(root.get("status"), status));
@@ -535,27 +588,16 @@ public class ComplaintService extends BaseSecurityService {
                 predicate = cb.and(predicate, cb.equal(root.get("governorate"), governorate));
             }
 
-            // فلترة حسب الجهة الحكومية
-            if (governmentAgency != null) {
+            // فلترة حسب الجهة الحكومية (يتم تطبيقها فقط إذا لم يكن المستخدم موظف)
+            // لأن الموظفين مقيدون بجهتهم الحكومية أعلاه
+            if (governmentAgency != null && !(currentUser instanceof Employee)) {
                 predicate = cb.and(predicate, cb.equal(root.get("governmentAgency"), governmentAgency));
             }
 
-            // فلترة حسب المواطن
-            if (citizenId != null) {
+            // فلترة حسب المواطن (يتم تطبيقها فقط إذا لم يكن المستخدم مواطن)
+            // لأن المواطنين مقيدون بشكاويهم أعلاه
+            if (citizenId != null && !isCurrentUserCitizen()) {
                 predicate = cb.and(predicate, cb.equal(root.get("citizen").get("id"), citizenId));
-            }
-
-            // التحقق من الصلاحيات
-            User currentUser = getCurrentUser();
-            if (currentUser instanceof Employee employee) {
-                if (employee.getGovernmentAgency() != null) {
-                    // الموظف يرى فقط شكاوى جهته الحكومية
-                    predicate = cb.and(predicate, cb.equal(root.get("governmentAgency"), employee.getGovernmentAgency()));
-                }
-            } else if (isCurrentUserCitizen()) {
-                // المواطن يرى فقط شكاويه
-                Citizen currentCitizen = getCurrentCitizen();
-                predicate = cb.and(predicate, cb.equal(root.get("citizen").get("id"), currentCitizen.getId()));
             }
 
             return predicate;
@@ -570,7 +612,7 @@ public class ComplaintService extends BaseSecurityService {
         Complaint complaint = complaintRepository.findByIdWithAttachments(complaintId)
                 .orElseThrow(() -> new EntityNotFoundException("Complaint not found with ID: " + complaintId));
         ensureCitizenOwnsComplaint(complaint);
-        User currentUser = getCurrentUser();
+        BaseUser currentUser = getCurrentUser();
         storeAttachments(complaint, files, currentUser);
         complaint = complaintRepository.save(complaint);
         return complaintMapper.toResponse(complaint);
@@ -590,7 +632,7 @@ public class ComplaintService extends BaseSecurityService {
                 .orElseThrow(() -> new EntityNotFoundException("Attachment not found"));
         Complaint complaint = attachment.getComplaint();
         ensureCitizenOwnsComplaint(complaint);
-        User currentUser = getCurrentUser();
+        BaseUser currentUser = getCurrentUser();
         String fileName = attachment.getOriginalFilename();
         attachmentStorageService.delete(attachment.getStoragePath());
         complaint.getAttachments().remove(attachment);
@@ -615,7 +657,7 @@ public class ComplaintService extends BaseSecurityService {
             ensureCitizenOwnsComplaint(complaint);
             return;
         }
-        User user = getCurrentUser();
+        BaseUser user = getCurrentUser();
         if (user instanceof Employee employee) {
             if (employee.getGovernmentAgency() == null ||
                 !employee.getGovernmentAgency().equals(complaint.getGovernmentAgency())) {
@@ -624,7 +666,7 @@ public class ComplaintService extends BaseSecurityService {
         }
     }
 
-    private void storeAttachments(Complaint complaint, List<MultipartFile> files, User currentUser) {
+    private void storeAttachments(Complaint complaint, List<MultipartFile> files, BaseUser currentUser) {
         if (files == null || files.isEmpty()) {
             return;
         }
@@ -700,7 +742,7 @@ public class ComplaintService extends BaseSecurityService {
      * 
      * Admins can always override the lock.
      */
-    private void ensureNotLockedByState(Complaint complaint, Employee currentEmployee, User currentUser) {
+    private void ensureNotLockedByState(Complaint complaint, Employee currentEmployee, BaseUser currentUser) {
         // If status is IN_PROGRESS and respondedBy is set
         if (complaint.getStatus() == ComplaintStatus.IN_PROGRESS && complaint.getRespondedBy() != null) {
             // Check if locked by another employee
@@ -740,7 +782,7 @@ public class ComplaintService extends BaseSecurityService {
     /**
      * Check if user is admin
      */
-    private boolean isAdmin(User user) {
+    private boolean isAdmin(BaseUser user) {
         return user.getRole() != null && 
                (user.getRole().getName().equalsIgnoreCase("ADMIN") || 
                 user.getRole().getName().equalsIgnoreCase("PLATFORM_ADMIN") ||

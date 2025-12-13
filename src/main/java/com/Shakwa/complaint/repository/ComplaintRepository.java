@@ -90,6 +90,12 @@ public interface ComplaintRepository extends JpaRepository<Complaint, Long>, Jpa
     List<Complaint> findByGovernorate(Governorate governorate);
 
     boolean existsByTrackingNumber(String trackingNumber);
+    
+    /**
+     * Find complaint by tracking number
+     * Used for citizen search functionality
+     */
+    Optional<Complaint> findByTrackingNumber(String trackingNumber);
 
     /**
      * Find complaint by ID with pessimistic write lock (SELECT FOR UPDATE)

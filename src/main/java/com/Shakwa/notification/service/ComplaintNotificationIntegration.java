@@ -44,6 +44,7 @@ public class ComplaintNotificationIntegration {
 
         NotificationRequest request = NotificationRequest.builder()
                 .userId(citizen.getId())
+                .userType("CITIZEN")
                 .title(title)
                 .body(body)
                 .data(data)
@@ -82,6 +83,7 @@ public class ComplaintNotificationIntegration {
 
         NotificationRequest request = NotificationRequest.builder()
                 .userId(citizen.getId())
+                .userType("CITIZEN")
                 .title(title)
                 .body(body)
                 .data(data)
@@ -118,6 +120,7 @@ public class ComplaintNotificationIntegration {
 
         NotificationRequest request = NotificationRequest.builder()
                 .userId(citizen.getId())
+                .userType("CITIZEN")
                 .title(title)
                 .body(body)
                 .data(data)
@@ -159,6 +162,7 @@ public class ComplaintNotificationIntegration {
 
         NotificationRequest notificationRequest = NotificationRequest.builder()
                 .userId(citizen.getId())
+                .userType("CITIZEN")
                 .title(title)
                 .body(body)
                 .data(data)

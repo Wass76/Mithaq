@@ -23,14 +23,10 @@ public class ComplaintHistoryMapper {
                 .metadata(history.getMetadata())
                 .actionDescription(history.getActionDescription())
                 .createdAt(history.getCreatedAt())
+                .actorId(history.getActorId())
+                .actorName(history.getActorName())
+                .actorEmail(history.getActorEmail())
                 .build();
-        
-        // معلومات المستخدم الذي قام بالإجراء
-        if (history.getActor() != null) {
-            dto.setActorId(history.getActor().getId());
-            dto.setActorName(history.getActor().getFirstName() + " " + history.getActor().getLastName());
-            dto.setActorEmail(history.getActor().getEmail());
-        }
         
         return dto;
     }

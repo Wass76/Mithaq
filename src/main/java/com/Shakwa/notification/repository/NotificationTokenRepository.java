@@ -1,7 +1,6 @@
 package com.Shakwa.notification.repository;
 
 import com.Shakwa.notification.entity.NotificationToken;
-import com.Shakwa.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -16,27 +15,22 @@ import java.util.Optional;
 public interface NotificationTokenRepository extends JpaRepository<NotificationToken, Long> {
 
     /**
-     * Find all active tokens for a user
+     * Find all active tokens for a user by ID and type
      */
-    List<NotificationToken> findByUserAndIsActiveTrue(User user);
+    @Query("SELECT nt FROM NotificationToken nt WHERE nt.userId = :userId AND nt.userType = :userType AND nt.isActive = true")
+    List<NotificationToken> findActiveTokensByUserIdAndType(@Param("userId") Long userId, @Param("userType") String userType);
 
     /**
-     * Find token by user and token string
+     * Find token by user ID, type, and token string
      */
-    Optional<NotificationToken> findByUserAndToken(User user, String token);
-
-    /**
-     * Find all active tokens for a user ID
-     */
-    @Query("SELECT nt FROM NotificationToken nt WHERE nt.user.id = :userId AND nt.isActive = true")
-    List<NotificationToken> findActiveTokensByUserId(@Param("userId") Long userId);
+    Optional<NotificationToken> findByUserIdAndUserTypeAndToken(Long userId, String userType, String token);
 
     /**
      * Deactivate all tokens for a user
      */
     @Modifying
-    @Query("UPDATE NotificationToken nt SET nt.isActive = false WHERE nt.user = :user")
-    void deactivateAllTokensByUser(@Param("user") User user);
+    @Query("UPDATE NotificationToken nt SET nt.isActive = false WHERE nt.userId = :userId AND nt.userType = :userType")
+    void deactivateAllTokensByUser(@Param("userId") Long userId, @Param("userType") String userType);
 
     /**
      * Update last used timestamp

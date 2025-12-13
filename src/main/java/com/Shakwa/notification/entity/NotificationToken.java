@@ -1,7 +1,6 @@
 package com.Shakwa.notification.entity;
 
 import com.Shakwa.user.entity.BaseUser;
-import com.Shakwa.user.entity.User;
 import com.Shakwa.utils.entity.AuditedEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -19,7 +18,7 @@ import java.time.LocalDateTime;
 @Data
 @EqualsAndHashCode(callSuper = false)
 @Table(name = "notification_tokens", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"user_id", "token"})
+    @UniqueConstraint(columnNames = {"user_id", "user_type", "token"})
 })
 @NoArgsConstructor
 @AllArgsConstructor
@@ -31,9 +30,17 @@ public class NotificationToken extends AuditedEntity {
         return "notification_token_id_seq";
     }
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    /**
+     * ID of the user who owns this token
+     */
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+    
+    /**
+     * Type of user (USER, CITIZEN, EMPLOYEE)
+     */
+    @Column(name = "user_type", nullable = false)
+    private String userType;
 
     @Column(name = "token", nullable = false, length = 1000)
     private String token;

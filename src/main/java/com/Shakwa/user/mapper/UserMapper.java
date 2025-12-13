@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 import com.Shakwa.user.Enum.GovernmentAgencyType;
 import com.Shakwa.user.dto.UserResponseDTO;
+import com.Shakwa.user.entity.BaseUser;
 import com.Shakwa.user.entity.Employee;
 import com.Shakwa.user.entity.User;
 
@@ -24,6 +25,13 @@ public class UserMapper {
         if (user == null) {
             return null;
         }
+        return toResponse((BaseUser) user);
+    }
+    
+    public UserResponseDTO toResponse(BaseUser user) {
+        if (user == null) {
+            return null;
+        }
 
         UserResponseDTO response = new UserResponseDTO();
         
@@ -38,8 +46,8 @@ public class UserMapper {
             response.setRole(roleMapper.toResponse(user.getRole()));
         }
         
-        if (user.getAdditionalPermissions() != null) {
-            response.setAdditionalPermissions(user.getAdditionalPermissions().stream()
+        if (user instanceof User userEntity && userEntity.getAdditionalPermissions() != null) {
+            response.setAdditionalPermissions(userEntity.getAdditionalPermissions().stream()
                     .map(permissionMapper::toResponse)
                     .collect(Collectors.toSet()));
         }

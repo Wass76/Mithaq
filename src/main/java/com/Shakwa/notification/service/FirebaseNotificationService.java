@@ -6,8 +6,7 @@ import com.Shakwa.notification.entity.Notification;
 import com.Shakwa.notification.entity.NotificationToken;
 import com.Shakwa.notification.repository.NotificationRepository;
 import com.Shakwa.notification.repository.NotificationTokenRepository;
-import com.Shakwa.user.entity.User;
-import com.Shakwa.user.repository.UserRepository;
+import com.Shakwa.user.entity.BaseUser;
 import com.google.firebase.messaging.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +30,6 @@ public class FirebaseNotificationService {
     private final FirebaseMessaging firebaseMessaging;
     private final NotificationTokenRepository tokenRepository;
     private final NotificationRepository notificationRepository;
-    private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
     private final MeterRegistry meterRegistry;
 
@@ -42,13 +40,11 @@ public class FirebaseNotificationService {
     public FirebaseNotificationService(FirebaseMessaging firebaseMessaging,
                                        NotificationTokenRepository tokenRepository,
                                        NotificationRepository notificationRepository,
-                                       UserRepository userRepository,
                                        ObjectMapper objectMapper,
                                        MeterRegistry meterRegistry) {
         this.firebaseMessaging = firebaseMessaging;
         this.tokenRepository = tokenRepository;
         this.notificationRepository = notificationRepository;
-        this.userRepository = userRepository;
         this.objectMapper = objectMapper;
         this.meterRegistry = meterRegistry;
 
@@ -61,11 +57,9 @@ public class FirebaseNotificationService {
      */
     @Transactional
     public Notification createPendingNotification(NotificationRequest request) {
-        User user = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new RuntimeException("User not found with ID: " + request.getUserId()));
-
         Notification notification = new Notification();
-        notification.setUser(user);
+        notification.setUserId(request.getUserId());
+        notification.setUserType(request.getUserType() != null ? request.getUserType() : "CITIZEN");
         notification.setTitle(request.getTitle());
         notification.setBody(request.getBody());
         try {
@@ -89,12 +83,13 @@ public class FirebaseNotificationService {
 
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new RuntimeException("Notification not found with ID: " + notificationId));
-        User user = notification.getUser();
+        Long userId = notification.getUserId();
+        String userType = notification.getUserType();
 
-        List<NotificationToken> tokens = tokenRepository.findActiveTokensByUserId(user.getId());
+        List<NotificationToken> tokens = tokenRepository.findActiveTokensByUserIdAndType(userId, userType);
 
         if (tokens.isEmpty()) {
-            log.warn("No active tokens found for userId={} type={}", user.getId(), notification.getNotificationType());
+            log.warn("No active tokens found for userId={} userType={} notificationType={}", userId, userType, notification.getNotificationType());
             notification.setStatus(Notification.NotificationStatus.FAILED);
             notification.setErrorMessage("No active tokens found");
             notificationRepository.save(notification);
@@ -121,13 +116,13 @@ public class FirebaseNotificationService {
                 errors.add(errorMsg);
                 log.error(errorMsg, e);
 
-                if (e.getMessage().contains("Invalid") || e.getMessage().contains("NotRegistered")) {
+                if (e.getMessage() != null && (e.getMessage().contains("Invalid") || e.getMessage().contains("NotRegistered"))) {
                     token.setIsActive(false);
                     tokenRepository.save(token);
                     String errorCode = (e instanceof FirebaseMessagingException fem && fem.getMessagingErrorCode() != null)
                             ? fem.getMessagingErrorCode().name()
                             : "unknown";
-                    log.warn("Deactivated tokenId={} for userId={} due to errorCode={}", token.getId(), user.getId(), errorCode);
+                    log.warn("Deactivated tokenId={} for userId={} due to errorCode={}", token.getId(), userId, errorCode);
                 }
             }
         }
@@ -145,13 +140,13 @@ public class FirebaseNotificationService {
 
         if (successCount > 0 && failureCount == 0) {
             log.info("Notification dispatch success notificationId={} userId={} tokensTried={} success={} failure={}",
-                    notificationId, user.getId(), tokens.size(), successCount, failureCount);
+                    notificationId, userId, tokens.size(), successCount, failureCount);
         } else if (successCount > 0) {
             log.warn("Notification dispatch partial notificationId={} userId={} tokensTried={} success={} failure={} errors={}",
-                    notificationId, user.getId(), tokens.size(), successCount, failureCount, errors);
+                    notificationId, userId, tokens.size(), successCount, failureCount, errors);
         } else {
             log.error("Notification dispatch failed notificationId={} userId={} tokensTried={} success={} failure={} errors={}",
-                    notificationId, user.getId(), tokens.size(), successCount, failureCount, errors);
+                    notificationId, userId, tokens.size(), successCount, failureCount, errors);
         }
 
         sample.stop(Timer.builder("notifications.dispatch.duration")
@@ -241,8 +236,11 @@ public class FirebaseNotificationService {
      * Register or update FCM token for a user
      */
     @Transactional
-    public NotificationToken registerToken(User user, String token, String deviceType, String deviceInfo) {
-        Optional<NotificationToken> existingToken = tokenRepository.findByUserAndToken(user, token);
+    public NotificationToken registerToken(BaseUser user, String token, String deviceType, String deviceInfo) {
+        Long userId = user.getId();
+        String userType = user.getClass().getSimpleName().toUpperCase();
+        
+        Optional<NotificationToken> existingToken = tokenRepository.findByUserIdAndUserTypeAndToken(userId, userType, token);
 
         if (existingToken.isPresent()) {
             NotificationToken tokenEntity = existingToken.get();
@@ -253,7 +251,8 @@ public class FirebaseNotificationService {
             return tokenRepository.save(tokenEntity);
         } else {
             NotificationToken newToken = new NotificationToken();
-            newToken.setUser(user);
+            newToken.setUserId(userId);
+            newToken.setUserType(userType);
             newToken.setToken(token);
             newToken.setDeviceType(deviceType);
             newToken.setDeviceInfo(deviceInfo);
@@ -267,8 +266,11 @@ public class FirebaseNotificationService {
      * Unregister token (mark as inactive)
      */
     @Transactional
-    public void unregisterToken(User user, String token) {
-        tokenRepository.findByUserAndToken(user, token)
+    public void unregisterToken(BaseUser user, String token) {
+        Long userId = user.getId();
+        String userType = user.getClass().getSimpleName().toUpperCase();
+        
+        tokenRepository.findByUserIdAndUserTypeAndToken(userId, userType, token)
                 .ifPresent(tokenEntity -> {
                     tokenEntity.setIsActive(false);
                     tokenRepository.save(tokenEntity);

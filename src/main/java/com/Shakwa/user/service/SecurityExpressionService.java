@@ -3,6 +3,7 @@ package com.Shakwa.user.service;
 import com.Shakwa.user.repository.EmployeeRepository;
 import org.springframework.stereotype.Service;
 
+import com.Shakwa.user.entity.BaseUser;
 import com.Shakwa.user.entity.User;
 import com.Shakwa.user.repository.CitizenRepo;
 import com.Shakwa.user.repository.UserRepository;
@@ -19,7 +20,7 @@ public class SecurityExpressionService extends BaseSecurityService {
      * Checks if the current user is a GovernmentAgency Manager
      */
     public boolean isGovernmentAgencyManager() {
-        User currentUser = getCurrentUser();
+        BaseUser currentUser = getCurrentUser();
         return currentUser.getRole().getName().equals("PHARMACY_MANAGER");
     }
 
@@ -27,7 +28,7 @@ public class SecurityExpressionService extends BaseSecurityService {
      * Checks if the current user is a Pharmacist
      */
     public boolean isPharmacist() {
-        User currentUser = getCurrentUser();
+        BaseUser currentUser = getCurrentUser();
         return currentUser.getRole().getName().equals("PHARMACIST");
     }
 
@@ -35,7 +36,7 @@ public class SecurityExpressionService extends BaseSecurityService {
      * Checks if the current user is a Trainee
      */
     public boolean isTrainee() {
-        User currentUser = getCurrentUser();
+        BaseUser currentUser = getCurrentUser();
         return currentUser.getRole().getName().equals("TRAINEE");
     }
 
@@ -45,15 +46,18 @@ public class SecurityExpressionService extends BaseSecurityService {
      * @return true if the user has the permission
      */
     public boolean hasPermission(String permissionName) {
-        User currentUser = getCurrentUser();
+        BaseUser currentUser = getCurrentUser();
         // Check role permissions
         boolean hasRolePermission = currentUser.getRole().getPermissions().stream()
                 .anyMatch(permission -> permission.getName().equals(permissionName));
         if (hasRolePermission) {
             return true;
         }
-        // Check additional permissions
-        return currentUser.getAdditionalPermissions().stream()
-                .anyMatch(permission -> permission.getName().equals(permissionName));
+        // Check additional permissions (only for User, not Citizen or Employee)
+        if (currentUser instanceof User user) {
+            return user.getAdditionalPermissions().stream()
+                    .anyMatch(permission -> permission.getName().equals(permissionName));
+        }
+        return false;
     }
 } 

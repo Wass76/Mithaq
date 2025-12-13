@@ -1,7 +1,7 @@
 package com.Shakwa.notification.service;
 
 import com.Shakwa.notification.dto.NotificationRequest;
-import com.Shakwa.user.entity.User;
+import com.Shakwa.user.entity.BaseUser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,7 +23,7 @@ public class SecurityNotificationService {
     /**
      * Send notification when user hits rate limit for login attempts
      */
-    public void notifyRateLimitExceeded(User user, String ipAddress) {
+    public void notifyRateLimitExceeded(BaseUser user, String ipAddress) {
         if (user == null) {
             log.warn("Cannot send rate limit notification: user is null");
             return;

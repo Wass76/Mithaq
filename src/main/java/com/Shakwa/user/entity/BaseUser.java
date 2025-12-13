@@ -16,7 +16,7 @@ import java.util.List;
 @AllArgsConstructor
 @SuperBuilder
 @MappedSuperclass
-public abstract class BaseUser extends BaseEntity implements UserDetails {
+public abstract class BaseUser extends BaseEntity implements UserDetails, HasRole {
 
     @Column(nullable = false)
     protected String firstName;

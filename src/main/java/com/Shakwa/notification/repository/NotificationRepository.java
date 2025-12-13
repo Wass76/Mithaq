@@ -1,8 +1,6 @@
 package com.Shakwa.notification.repository;
 
 import com.Shakwa.notification.entity.Notification;
-import com.Shakwa.user.entity.BaseUser;
-import com.Shakwa.user.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -18,21 +16,29 @@ import java.util.List;
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
     /**
-     * Find all notifications for a user
+     * Find all notifications for a user by ID and type
      */
-    Page<Notification> findByUserOrderByCreatedAtDesc(User user, Pageable pageable);
+    @Query("SELECT n FROM Notification n WHERE n.userId = :userId AND n.userType = :userType ORDER BY n.createdAt DESC")
+    Page<Notification> findByUserIdAndUserTypeOrderByCreatedAtDesc(
+            @Param("userId") Long userId, 
+            @Param("userType") String userType, 
+            Pageable pageable);
 
     /**
-     * Find unread notifications for a user
+     * Find unread notifications for a user by ID and type
      */
-    @Query("SELECT n FROM Notification n WHERE n.user = :user AND n.readAt IS NULL ORDER BY n.createdAt DESC")
-    List<Notification> findUnreadNotificationsByUser(@Param("user") User user);
+    @Query("SELECT n FROM Notification n WHERE n.userId = :userId AND n.userType = :userType AND n.readAt IS NULL ORDER BY n.createdAt DESC")
+    List<Notification> findUnreadNotificationsByUserIdAndType(
+            @Param("userId") Long userId, 
+            @Param("userType") String userType);
 
     /**
-     * Count unread notifications for a user
+     * Count unread notifications for a user by ID and type
      */
-    @Query("SELECT COUNT(n) FROM Notification n WHERE n.user = :user AND n.readAt IS NULL")
-    Long countUnreadNotificationsByUser(@Param("user") User user);
+    @Query("SELECT COUNT(n) FROM Notification n WHERE n.userId = :userId AND n.userType = :userType AND n.readAt IS NULL")
+    Long countUnreadNotificationsByUserIdAndType(
+            @Param("userId") Long userId, 
+            @Param("userType") String userType);
 
     /**
      * Mark notification as read
@@ -42,11 +48,14 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     void markAsRead(@Param("id") Long id, @Param("readAt") LocalDateTime readAt);
 
     /**
-     * Mark all notifications as read for a user
+     * Mark all notifications as read for a user by ID and type
      */
     @Modifying
-    @Query("UPDATE Notification n SET n.readAt = :readAt WHERE n.user = :user AND n.readAt IS NULL")
-    void markAllAsReadByUser(@Param("user") User user, @Param("readAt") LocalDateTime readAt);
+    @Query("UPDATE Notification n SET n.readAt = :readAt WHERE n.userId = :userId AND n.userType = :userType AND n.readAt IS NULL")
+    void markAllAsReadByUserIdAndType(
+            @Param("userId") Long userId, 
+            @Param("userType") String userType,
+            @Param("readAt") LocalDateTime readAt);
 
     /**
      * Find notifications by status

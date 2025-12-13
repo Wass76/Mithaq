@@ -20,6 +20,11 @@ public class NotificationRequest {
 
     @NotNull(message = "User ID is required")
     private Long userId;
+    
+    /**
+     * Type of user (USER, CITIZEN, EMPLOYEE). Defaults to CITIZEN if not specified.
+     */
+    private String userType;
 
     @NotBlank(message = "Title is required")
     private String title;

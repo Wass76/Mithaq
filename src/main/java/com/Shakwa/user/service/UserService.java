@@ -30,6 +30,7 @@ import com.Shakwa.utils.exception.RequestNotValidException;
 import com.Shakwa.utils.exception.ResourceNotFoundException;
 import com.Shakwa.utils.exception.TooManyRequestException;
 import com.Shakwa.notification.service.SecurityNotificationService;
+import com.Shakwa.utils.annotation.Audited;
 
 import java.util.HashSet;
 import java.util.List;
@@ -115,6 +116,7 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
     }
 
+    @Audited(action = "UPDATE_USER", targetType = "USER", includeArgs = false)
     public UserResponseDTO updateUser(Long id, UserRequestDTO userDetails) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
@@ -157,12 +159,14 @@ public class UserService {
         throw new AccessDeniedException("Only PLATFORM_ADMIN and SALES_MANAGER can update users");
     }
 
+    @Audited(action = "DELETE_USER", targetType = "USER", includeArgs = false)
     public void deleteUser(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
         userRepository.delete(user);
     }
 
+    @Audited(action = "LOGIN", targetType = "USER", includeArgs = false)
     public UserAuthenticationResponse login(AuthenticationRequest request, HttpServletRequest httpServletRequest) {
         String userIp = httpServletRequest.getRemoteAddr();
         if (rateLimiterConfig.getBlockedIPs().contains(userIp)) {
@@ -236,24 +240,37 @@ public class UserService {
     //     return user.getStatus() == com.Shakwa.user.Enum.UserStatus.ACTIVE;
     // }
 
-    public User getCurrentUser() {
+    public BaseUser getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new ResourceNotFoundException("User not authenticated");
         }
-        User user = citizenRepo.findByEmail(authentication.getName()).orElse(null);
-        if (user == null) {
-            user = employeeRepository.findByEmail(authentication.getName()).orElseThrow(
-                    ()-> new ResourceNotFoundException("User isn't employee and not citizen and it's not found")
-            );
+        
+        String email = authentication.getName();
+        
+        // Try User (Platform Admins) first
+        BaseUser user = userRepository.findByEmail(email).orElse(null);
+        if (user != null) {
+            return user;
         }
+        
+        // Try Citizen
+        user = citizenRepo.findByEmail(email).orElse(null);
+        if (user != null) {
+            return user;
+        }
+        
+        // Try Employee
+        user = employeeRepository.findByEmail(email).orElseThrow(
+                ()-> new ResourceNotFoundException("User not found: " + email)
+        );
         return user;
-
     }
     public UserResponseDTO getCurrentUserResponse(){
         return userMapper.toResponse(getCurrentUser());
     }
 
+    @Audited(action = "UPDATE_USER_PERMISSIONS", targetType = "USER", includeArgs = false)
     public UserResponseDTO updateUserPermissions(Long userId, Set<Long> permissionIds) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));

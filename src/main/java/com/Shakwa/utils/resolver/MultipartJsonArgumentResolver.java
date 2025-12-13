@@ -1,4 +1,4 @@
-package com.Shakwa.complaint.resolver;
+package com.Shakwa.utils.resolver;
 
 import com.Shakwa.utils.exception.ObjectNotValidException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -154,4 +154,3 @@ public class MultipartJsonArgumentResolver implements HandlerMethodArgumentResol
         return dto;
     }
 }
-

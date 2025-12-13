@@ -110,22 +110,65 @@ public class ComplaintController {
     @GetMapping("filter")
     @Operation(
         summary = "Filter complaints", 
-        description = "Filter complaints by multiple criteria (status, type, governorate, government agency, citizen ID) with pagination. All filters are optional."
+        description = "Filter complaints by multiple criteria with pagination support. " +
+                     "All filters are optional and can be combined to create complex queries.\n\n" +
+                     "**Access Control:**\n" +
+                     "- **Citizens**: Can only filter their own complaints (citizenId is automatically set to their ID).\n" +
+                     "- **Employees**: Can filter complaints for their government agency only.\n" +
+                     "- **Platform Admins**: Can filter complaints across all agencies.\n\n" +
+                     "**Filtering Options:**\n" +
+                     "- **Status**: Filter by complaint status (PENDING, IN_PROGRESS, RESOLVED, REJECTED, CLOSED)\n" +
+                     "- **Type**: Filter by complaint type\n" +
+                     "- **Governorate**: Filter by governorate\n" +
+                     "- **Government Agency**: Filter by government agency (admins only)\n" +
+                     "- **Citizen ID**: Filter by specific citizen (admins only)\n\n" +
+                     "**Pagination:**\n" +
+                     "Results are paginated. Use `page` (0-indexed) and `size` parameters to navigate through results.\n\n" +
+                     "**Response:**\n" +
+                     "Returns a paginated list of complaints matching all specified filters."
     )
     public ResponseEntity<PaginationDTO<ComplaintDTOResponse>> filterComplaints(
-            @Parameter(description = "Complaint status", example = "PENDING")
+            @Parameter(
+                description = "Filter by complaint status. " +
+                             "Accepts both enum format (IN_PROGRESS) and display format (IN PROGRESS). " +
+                             "Valid values: PENDING, IN_PROGRESS, RESOLVED, REJECTED, CLOSED",
+                example = "PENDING"
+            )
             @RequestParam(required = false) ComplaintStatus status,
-            @Parameter(description = "Complaint type", example = "تأخر_في_إنجاز_معاملة")
+            @Parameter(
+                description = "Filter by complaint type. " +
+                             "Accepts both enum format (with underscores) and display format (with spaces).",
+                example = "تأخر_في_إنجاز_معاملة"
+            )
             @RequestParam(required = false) ComplaintType complaintType,
-            @Parameter(description = "Governorate", example = "دمشق")
+            @Parameter(
+                description = "Filter by governorate. Valid values include: دمشق, حلب, اللاذقية, etc.",
+                example = "دمشق"
+            )
             @RequestParam(required = false) Governorate governorate,
-            @Parameter(description = "Government agency", example = "وزارة_الصحة")
+            @Parameter(
+                description = "Filter by government agency (admins only). " +
+                             "Accepts both formats: 'وزارة_الصحة' (with underscores) or 'وزارة الصحة' (with spaces). " +
+                             "For employees, this parameter is ignored and their agency is used automatically. " +
+                             "Valid values include: وزارة_الصحة, وزارة_الطاقة, وزارة_التربية, etc.",
+                example = "وزارة الصحة"
+            )
             @RequestParam(required = false) GovernmentAgencyType governmentAgency,
-            @Parameter(description = "Citizen ID", example = "1")
+            @Parameter(
+                description = "Filter by citizen ID (admins only). " +
+                             "Returns only complaints submitted by the specified citizen.",
+                example = "1"
+            )
             @RequestParam(required = false) Long citizenId,
-            @Parameter(description = "Page number (0-indexed)", example = "0")
+            @Parameter(
+                description = "Page number (0-indexed). First page is 0.",
+                example = "0"
+            )
             @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Page size", example = "10")
+            @Parameter(
+                description = "Number of items per page. Default: 10.",
+                example = "10"
+            )
             @RequestParam(defaultValue = "10") int size) {
         PaginationDTO<ComplaintDTOResponse> complaints = complaintService.filterComplaints(
             status, complaintType, governorate, governmentAgency, citizenId, page, size);
@@ -176,14 +219,16 @@ public class ComplaintController {
         return ResponseEntity.noContent().build();
     }
 
-    @PutMapping("{id}")
+    @PutMapping(value = "{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Update complaint", description = "Update an existing complaint. Only employees from the same agency can update.")
     public ResponseEntity<ComplaintDTOResponse> updateComplaint(
             @Parameter(description = "Complaint ID", example = "1") 
             @PathVariable Long id,
             @Parameter(description = "Updated complaint data", required = true)
-            @RequestBody ComplaintDTORequest dto) {
-        ComplaintDTOResponse complaint = complaintService.updateComplaint(id, dto);
+            @RequestPart("data") ComplaintDTORequest dto,
+            @Parameter(description = "Attachment files", required = false)
+            @RequestPart(value = "files", required = false) List<MultipartFile> files) {
+        ComplaintDTOResponse complaint = complaintService.updateComplaint(id, dto, files);
         return ResponseEntity.ok(complaint);
     }
 
@@ -226,6 +271,18 @@ public class ComplaintController {
             @RequestParam(defaultValue = "10") int size) {
         PaginationDTO<ComplaintHistoryDTO> history = complaintService.getComplaintHistory(id, page, size);
         return ResponseEntity.ok(history);
+    }
+
+    @GetMapping("tracking/{trackingNumber}")
+    @Operation(
+        summary = "Get complaint by tracking number", 
+        description = "Search for a complaint using its tracking number. Citizens can only access their own complaints, employees can access complaints from their agency."
+    )
+    public ResponseEntity<ComplaintDTOResponse> getComplaintByTrackingNumber(
+            @Parameter(description = "Tracking number", example = "SHK-20250215-AB12CD") 
+            @PathVariable String trackingNumber) {
+        ComplaintDTOResponse complaint = complaintService.getComplaintByTrackingNumber(trackingNumber);
+        return ResponseEntity.ok(complaint);
     }
 
 }

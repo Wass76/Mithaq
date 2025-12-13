@@ -5,7 +5,7 @@ import com.Shakwa.notification.dto.NotificationResponse;
 import com.Shakwa.notification.dto.TokenRegistrationRequest;
 import com.Shakwa.notification.entity.NotificationToken;
 import com.Shakwa.notification.service.NotificationService;
-import com.Shakwa.user.entity.User;
+import com.Shakwa.user.entity.BaseUser;
 import com.Shakwa.utils.controller.BaseController;
 import com.Shakwa.utils.response.ApiResponseClass;
 import com.Shakwa.utils.response.PaginationResponse;
@@ -42,7 +42,7 @@ public class NotificationController extends BaseController {
             @Valid @RequestBody TokenRegistrationRequest request,
             Authentication authentication) {
         
-        User user = (User) authentication.getPrincipal();
+        BaseUser user = (BaseUser) authentication.getPrincipal();
         NotificationToken token = notificationService.registerToken(user, request);
         
         return ResponseEntity.ok(
@@ -62,7 +62,7 @@ public class NotificationController extends BaseController {
             @PathVariable String token,
             Authentication authentication) {
         
-        User user = (User) authentication.getPrincipal();
+        BaseUser user = (BaseUser) authentication.getPrincipal();
         notificationService.unregisterToken(user, token);
         
         return ResponseEntity.ok(
@@ -84,7 +84,7 @@ public class NotificationController extends BaseController {
             @RequestParam(defaultValue = "DESC") String sortDir,
             Authentication authentication) {
         
-        User user = (User) authentication.getPrincipal();
+        BaseUser user = (BaseUser) authentication.getPrincipal();
         Sort sort = sortDir.equalsIgnoreCase("ASC") ? 
                 Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(page, size, sort);
@@ -108,7 +108,7 @@ public class NotificationController extends BaseController {
     public ResponseEntity<?> getUnreadNotifications(
             Authentication authentication) {
         
-        User user = (User) authentication.getPrincipal();
+        BaseUser user = (BaseUser) authentication.getPrincipal();
         List<NotificationResponse> notifications = notificationService.getUnreadNotifications(user);
         
         return ResponseEntity.ok(
@@ -126,7 +126,7 @@ public class NotificationController extends BaseController {
     public ResponseEntity<?> getUnreadCount(
             Authentication authentication) {
         
-        User user = (User) authentication.getPrincipal();
+        BaseUser user = (BaseUser) authentication.getPrincipal();
         Long count = notificationService.getUnreadCount(user);
         
         return ResponseEntity.ok(
@@ -145,7 +145,7 @@ public class NotificationController extends BaseController {
             @PathVariable Long id,
             Authentication authentication) {
         
-        User user = (User) authentication.getPrincipal();
+        BaseUser user = (BaseUser) authentication.getPrincipal();
         notificationService.markAsRead(id, user);
         
         return ResponseEntity.ok(
@@ -163,7 +163,7 @@ public class NotificationController extends BaseController {
     public ResponseEntity<?> markAllAsRead(
             Authentication authentication) {
         
-        User user = (User) authentication.getPrincipal();
+        BaseUser user = (BaseUser) authentication.getPrincipal();
         notificationService.markAllAsRead(user);
         
         return ResponseEntity.ok(

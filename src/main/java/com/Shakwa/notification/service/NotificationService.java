@@ -6,7 +6,7 @@ import com.Shakwa.notification.dto.TokenRegistrationRequest;
 import com.Shakwa.notification.entity.Notification;
 import com.Shakwa.notification.entity.NotificationToken;
 import com.Shakwa.notification.repository.NotificationRepository;
-import com.Shakwa.user.entity.User;
+import com.Shakwa.user.entity.BaseUser;
 import com.Shakwa.utils.annotation.Audited;
 import com.Shakwa.utils.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -38,7 +38,7 @@ public class NotificationService {
      */
     @Audited(action = "REGISTER_NOTIFICATION_TOKEN", targetType = "NOTIFICATION_TOKEN", includeArgs = false)
     @Transactional
-    public NotificationToken registerToken(User user, TokenRegistrationRequest request) {
+    public NotificationToken registerToken(BaseUser user, TokenRegistrationRequest request) {
         return firebaseNotificationService.registerToken(
                 user,
                 request.getToken(),
@@ -52,23 +52,27 @@ public class NotificationService {
      */
     @Audited(action = "UNREGISTER_NOTIFICATION_TOKEN", targetType = "NOTIFICATION_TOKEN", includeArgs = false)
     @Transactional
-    public void unregisterToken(User user, String token) {
+    public void unregisterToken(BaseUser user, String token) {
         firebaseNotificationService.unregisterToken(user, token);
     }
 
     /**
      * Get all notifications for a user
      */
-    public Page<NotificationResponse> getUserNotifications(User user, Pageable pageable) {
-        return notificationRepository.findByUserOrderByCreatedAtDesc(user, pageable)
+    public Page<NotificationResponse> getUserNotifications(BaseUser user, Pageable pageable) {
+        Long userId = user.getId();
+        String userType = user.getClass().getSimpleName().toUpperCase();
+        return notificationRepository.findByUserIdAndUserTypeOrderByCreatedAtDesc(userId, userType, pageable)
                 .map(NotificationResponse::fromEntity);
     }
 
     /**
      * Get unread notifications for a user
      */
-    public List<NotificationResponse> getUnreadNotifications(User user) {
-        return notificationRepository.findUnreadNotificationsByUser(user).stream()
+    public List<NotificationResponse> getUnreadNotifications(BaseUser user) {
+        Long userId = user.getId();
+        String userType = user.getClass().getSimpleName().toUpperCase();
+        return notificationRepository.findUnreadNotificationsByUserIdAndType(userId, userType).stream()
                 .map(NotificationResponse::fromEntity)
                 .toList();
     }
@@ -76,19 +80,21 @@ public class NotificationService {
     /**
      * Get unread notification count
      */
-    public Long getUnreadCount(User user) {
-        return notificationRepository.countUnreadNotificationsByUser(user);
+    public Long getUnreadCount(BaseUser user) {
+        Long userId = user.getId();
+        String userType = user.getClass().getSimpleName().toUpperCase();
+        return notificationRepository.countUnreadNotificationsByUserIdAndType(userId, userType);
     }
 
     /**
      * Mark notification as read
      */
     @Transactional
-    public void markAsRead(Long notificationId, User user) {
+    public void markAsRead(Long notificationId, BaseUser user) {
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Notification not found"));
 
-        if (!notification.getUser().getId().equals(user.getId())) {
+        if (!notification.getUserId().equals(user.getId())) {
             throw new RuntimeException("Notification does not belong to user");
         }
 
@@ -101,8 +107,10 @@ public class NotificationService {
      * Mark all notifications as read for a user
      */
     @Transactional
-    public void markAllAsRead(User user) {
-        notificationRepository.markAllAsReadByUser(user, LocalDateTime.now());
+    public void markAllAsRead(BaseUser user) {
+        Long userId = user.getId();
+        String userType = user.getClass().getSimpleName().toUpperCase();
+        notificationRepository.markAllAsReadByUserIdAndType(userId, userType, LocalDateTime.now());
     }
 
     /**

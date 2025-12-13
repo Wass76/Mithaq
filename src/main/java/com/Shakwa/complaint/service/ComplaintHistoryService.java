@@ -1,6 +1,5 @@
 package com.Shakwa.complaint.service;
 
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -11,11 +10,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.Shakwa.complaint.Enum.ComplaintStatus;
 import com.Shakwa.complaint.Enum.HistoryActionType;
-import com.Shakwa.complaint.dto.ComplaintHistoryDTO;
 import com.Shakwa.complaint.entity.Complaint;
 import com.Shakwa.complaint.entity.ComplaintHistory;
 import com.Shakwa.complaint.repository.ComplaintHistoryRepository;
-import com.Shakwa.user.entity.User;
+import com.Shakwa.user.entity.BaseUser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -40,7 +38,7 @@ public class ComplaintHistoryService {
     /**
      * تسجيل إنشاء شكوى جديدة
      */
-    public void recordCreation(Complaint complaint, User actor) {
+    public void recordCreation(Complaint complaint, BaseUser actor) {
         ComplaintHistory history = new ComplaintHistory(complaint, actor, HistoryActionType.CREATED);
         history.setActionDescription(generateActionDescription(HistoryActionType.CREATED, actor, null, null, null));
         complaintHistoryRepository.save(history);
@@ -49,7 +47,7 @@ public class ComplaintHistoryService {
     /**
      * تسجيل تغيير حالة الشكوى
      */
-    public void recordStatusChange(Complaint complaint, User actor, ComplaintStatus oldStatus, ComplaintStatus newStatus) {
+    public void recordStatusChange(Complaint complaint, BaseUser actor, ComplaintStatus oldStatus, ComplaintStatus newStatus) {
         ComplaintHistory history = new ComplaintHistory(complaint, actor, HistoryActionType.STATUS_CHANGED);
         history.setFieldChanged("status");
         history.setOldValue(oldStatus != null ? oldStatus.name() : null);
@@ -62,7 +60,7 @@ public class ComplaintHistoryService {
     /**
      * تسجيل تحديث حقول الشكوى
      */
-    public void recordFieldUpdate(Complaint complaint, User actor, String fieldName, String oldValue, String newValue) {
+    public void recordFieldUpdate(Complaint complaint, BaseUser actor, String fieldName, String oldValue, String newValue) {
         ComplaintHistory history = new ComplaintHistory(complaint, actor, HistoryActionType.UPDATED_FIELDS);
         history.setFieldChanged(fieldName);
         history.setOldValue(oldValue);
@@ -75,7 +73,7 @@ public class ComplaintHistoryService {
     /**
      * تسجيل إضافة مرفق
      */
-    public void recordAttachmentAdded(Complaint complaint, User actor, String fileName, String filePath) {
+    public void recordAttachmentAdded(Complaint complaint, BaseUser actor, String fileName, String filePath) {
         ComplaintHistory history = new ComplaintHistory(complaint, actor, HistoryActionType.ATTACHMENT_ADDED);
         
         Map<String, String> metadata = new HashMap<>();
@@ -96,7 +94,7 @@ public class ComplaintHistoryService {
     /**
      * تسجيل حذف مرفق
      */
-    public void recordAttachmentRemoved(Complaint complaint, User actor, String fileName) {
+    public void recordAttachmentRemoved(Complaint complaint, BaseUser actor, String fileName) {
         ComplaintHistory history = new ComplaintHistory(complaint, actor, HistoryActionType.ATTACHMENT_REMOVED);
         
         Map<String, String> metadata = new HashMap<>();
@@ -116,7 +114,7 @@ public class ComplaintHistoryService {
     /**
      * تسجيل حجز الشكوى (State-Based Lock - IN_PROGRESS)
      */
-    public void recordLocked(Complaint complaint, User actor) {
+    public void recordLocked(Complaint complaint, BaseUser actor) {
         ComplaintHistory history = new ComplaintHistory(complaint, actor, HistoryActionType.LOCKED);
         history.setActionDescription(generateActionDescription(HistoryActionType.LOCKED, actor, null, null, null));
         complaintHistoryRepository.save(history);
@@ -125,7 +123,7 @@ public class ComplaintHistoryService {
     /**
      * تسجيل تحرير الشكوى (State-Based Lock - RESOLVED/REJECTED/CLOSED)
      */
-    public void recordUnlocked(Complaint complaint, User actor) {
+    public void recordUnlocked(Complaint complaint, BaseUser actor) {
         ComplaintHistory history = new ComplaintHistory(complaint, actor, HistoryActionType.UNLOCKED);
         history.setActionDescription(generateActionDescription(HistoryActionType.UNLOCKED, actor, null, null, null));
         complaintHistoryRepository.save(history);
@@ -134,7 +132,7 @@ public class ComplaintHistoryService {
     /**
      * تسجيل طلب معلومات إضافية من المواطن
      */
-    public void recordInfoRequested(Complaint complaint, User actor, String requestMessage) {
+    public void recordInfoRequested(Complaint complaint, BaseUser actor, String requestMessage) {
         ComplaintHistory history = new ComplaintHistory(complaint, actor, HistoryActionType.INFO_REQUESTED);
         
         Map<String, String> metadata = new HashMap<>();
@@ -154,7 +152,7 @@ public class ComplaintHistoryService {
     /**
      * تسجيل توفير معلومات إضافية من قبل المواطن
      */
-    public void recordInfoProvided(Complaint complaint, User actor, com.Shakwa.complaint.entity.InformationRequest request) {
+    public void recordInfoProvided(Complaint complaint, BaseUser actor, com.Shakwa.complaint.entity.InformationRequest request) {
         ComplaintHistory history = new ComplaintHistory(complaint, actor, HistoryActionType.INFO_PROVIDED);
         
         Map<String, String> metadata = new HashMap<>();
@@ -184,7 +182,7 @@ public class ComplaintHistoryService {
     /**
      * تسجيل إلغاء طلب المعلومات
      */
-    public void recordInfoRequestCancelled(Complaint complaint, User actor, com.Shakwa.complaint.entity.InformationRequest request) {
+    public void recordInfoRequestCancelled(Complaint complaint, BaseUser actor, com.Shakwa.complaint.entity.InformationRequest request) {
         ComplaintHistory history = new ComplaintHistory(complaint, actor, HistoryActionType.INFO_REQUEST_CANCELLED);
         
         Map<String, String> metadata = new HashMap<>();
@@ -205,7 +203,7 @@ public class ComplaintHistoryService {
     /**
      * توليد وصف الإجراء بالعربية
      */
-    private String generateActionDescription(HistoryActionType actionType, User actor, 
+    private String generateActionDescription(HistoryActionType actionType, BaseUser actor, 
                                              String fieldName, String oldValue, String newValue) {
         String actorName = actor.getFirstName() + " " + actor.getLastName();
         

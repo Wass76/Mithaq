@@ -13,13 +13,17 @@ import java.util.List;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * User Entity - For Platform Admins only
+ * This entity is separate from Citizen and Employee entities.
+ * Platform Admins are not government employees and don't have governmentAgency.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @SuperBuilder(builderMethodName = "builder")
 @Entity
 @Table(name = "users")
-@Inheritance(strategy = InheritanceType.JOINED)
 public class User extends BaseUser {
 
     @Override

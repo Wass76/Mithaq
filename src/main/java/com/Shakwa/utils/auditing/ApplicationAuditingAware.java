@@ -1,7 +1,5 @@
 package com.Shakwa.utils.auditing;
 
-
-import com.Shakwa.user.entity.User;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -24,7 +22,7 @@ public class ApplicationAuditingAware implements AuditorAware<Long> {
             return Optional.of(1L);
         }
         // Use BaseUser instead of User since both User and Citizen extend BaseUser
-        User currentUser = (User) authentication.getPrincipal();
+        BaseUser currentUser = (BaseUser) authentication.getPrincipal();
         return Optional.ofNullable(currentUser.getId());
     }
 }
