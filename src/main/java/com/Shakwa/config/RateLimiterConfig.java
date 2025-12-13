@@ -13,7 +13,7 @@ import java.util.*;
 public class RateLimiterConfig {
     private final Set<String> blockedIPs = new HashSet<>();
     private final Map<String, LocalDateTime> blockedTimes = new HashMap<>();
-    private final Duration blockDuration = Duration.ofMinutes(1); // Duration for blocking IPs
+    private final Duration blockDuration = Duration.ofMinutes(30); // Duration for blocking IPs
 
     @Bean
     public RateLimiterRegistry rateLimiterRegistry() {
