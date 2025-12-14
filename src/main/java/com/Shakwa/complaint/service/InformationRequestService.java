@@ -17,6 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import org.apache.tika.Tika;
 
+import com.Shakwa.complaint.Enum.ComplaintStatus;
 import com.Shakwa.complaint.Enum.InformationRequestStatus;
 import com.Shakwa.complaint.dto.ComplaintAttachmentDTO;
 import com.Shakwa.complaint.dto.InformationRequestCreateDTO;
@@ -122,6 +123,10 @@ public class InformationRequestService extends BaseSecurityService {
         request.setStatus(InformationRequestStatus.PENDING);
 
         request = informationRequestRepository.save(request);
+        
+        // Update complaint status to INFO_REQUESTED
+        complaint.setStatus(ComplaintStatus.INFO_REQUESTED);
+        complaintRepository.save(complaint);
 
         // Record in complaint history
         complaintHistoryService.recordInfoRequested(complaint, employee, dto.getMessage());
@@ -129,7 +134,7 @@ public class InformationRequestService extends BaseSecurityService {
         // Send notification to citizen
         complaintNotificationIntegration.notifyInfoRequested(complaint, request);
 
-        logger.info("Information request created: ID={}, Complaint={}, Employee={}", 
+        logger.info("Information request created: ID={}, Complaint={}, Employee={}, Complaint status changed to INFO_REQUESTED", 
                 request.getId(), complaintId, employee.getId());
 
         return toDTO(request);
@@ -196,6 +201,10 @@ public class InformationRequestService extends BaseSecurityService {
         }
 
         request = informationRequestRepository.save(request);
+        
+        // Update complaint status back to IN_PROGRESS after citizen provides info
+        complaint.setStatus(ComplaintStatus.IN_PROGRESS);
+        complaintRepository.save(complaint);
 
         // Record in complaint history
         complaintHistoryService.recordInfoProvided(complaint, citizen, request);
@@ -203,7 +212,7 @@ public class InformationRequestService extends BaseSecurityService {
         // Optionally notify employee (can be added later)
         // complaintNotificationIntegration.notifyInfoProvided(complaint, request);
 
-        logger.info("Information request responded: ID={}, Complaint={}, Citizen={}", 
+        logger.info("Information request responded: ID={}, Complaint={}, Citizen={}, Complaint status changed to IN_PROGRESS", 
                 requestId, complaint.getId(), citizen.getId());
 
         return toDTO(request);

@@ -6,6 +6,7 @@ public enum ComplaintStatus {
     
     PENDING,
     IN_PROGRESS,
+    INFO_REQUESTED,
     RESOLVED,
     CLOSED,
     REJECTED;

@@ -9,3 +9,4 @@ public interface HasRole {
     void setRole(Role role);
 }
 
+

@@ -33,7 +33,9 @@ public class AdminUserManagementController {
         this.citizenService = citizenService;
     }
     
-    // Employee Management
+    // Employee Status Management (Admin-specific operations)
+    // Note: For CRUD operations (create, read, update, delete), use /api/v1/employees endpoints
+    // Admin has full access to those endpoints without agency restrictions
     
     @PutMapping("/employees/{id}/disable")
     @Operation(

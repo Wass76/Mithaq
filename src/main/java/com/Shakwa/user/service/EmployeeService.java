@@ -112,7 +112,16 @@ public class EmployeeService extends BaseSecurityService {
     }
     
     public List<EmployeeResponseDTO> getAllEmployeesInGovernmentAgency() {
-        // Validate that the current user is a governmentAgency manager
+        // Admin can see all employees regardless of agency
+        if (isAdmin()) {
+            logger.info("Admin requesting all employees in the system");
+            return employeeRepository.findAll()
+                    .stream()
+                    .map(EmployeeMapper::toResponseDTO)
+                    .collect(java.util.stream.Collectors.toList());
+        }
+        
+        // Validate that the current user is a governmentAgency employee
         BaseUser currentUser = getCurrentUser();
         if (!(currentUser instanceof Employee)) {
             throw new UnAuthorizedException("Only governmentAgency employees can access employee data");
@@ -262,12 +271,19 @@ public class EmployeeService extends BaseSecurityService {
     
     /**
      * Get employee by ID with authorization check to ensure the current user has access to this employee
-     * (same governmentAgency)
+     * Admin can access any employee, others can only access employees in their governmentAgency
      * @param employeeId The ID of the employee to retrieve
      * @return EmployeeResponseDTO of the employee
      * @throws UnAuthorizedException if the current user doesn't have access to this employee
      */
     public EmployeeResponseDTO getEmployeeByIdWithAuth(Long employeeId) {
+        Employee employee = getEmployeeById(employeeId);
+        
+        // Admin can access any employee
+        if (isAdmin()) {
+            return EmployeeMapper.toResponseDTO(employee);
+        }
+        
         // Get current user and validate they are an employee
         BaseUser currentUser = getCurrentUser();
         if (!(currentUser instanceof Employee)) {
@@ -279,11 +295,8 @@ public class EmployeeService extends BaseSecurityService {
             throw new UnAuthorizedException("Employee is not associated with any governmentAgency");
         }
 
-        GovernmentAgencyType currentGovernmentAgency = currentEmployee.getGovernmentAgency();
-
-        // Get the employee and validate governmentAgency access
-        Employee employee = getEmployeeById(employeeId);
-        if (!employee.getGovernmentAgency().equals(currentGovernmentAgency)) {
+        // Validate governmentAgency access
+        if (!employee.getGovernmentAgency().equals(currentEmployee.getGovernmentAgency())) {
             throw new UnAuthorizedException("You can only access employees in your own governmentAgency");
         }
         

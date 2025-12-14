@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-@Schema(description = "Citizen response with debt information")
+@Schema(description = "Citizen response with account status information")
 public class CitizenDTOResponse {
     private Long id;
     
@@ -21,5 +21,7 @@ public class CitizenDTOResponse {
     @Schema(description = "Citizen email", example = "cashcitizen@gmail.com")
     private String email;
 
+    @Schema(description = "Whether the citizen account is active", example = "true")
+    private Boolean isActive;
 
 }

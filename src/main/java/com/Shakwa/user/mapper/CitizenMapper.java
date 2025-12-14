@@ -29,6 +29,7 @@ public class CitizenMapper {
                 .id(citizen.getId())
                 .name(citizen.getFirstName() + " " + citizen.getLastName())
                 .email(citizen.getEmail())
+                .isActive(citizen.getStatus() != null && citizen.getStatus() == UserStatus.ACTIVE)
                 .build();
 
         return response;
