@@ -2,20 +2,47 @@ package com.Shakwa.utils.restExceptionHanding;
 
 import jakarta.persistence.EntityExistsException;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageConversionException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import com.Shakwa.utils.exception.*;
 
 import java.time.LocalDateTime;
+import java.util.stream.Collectors;
 
 @ControllerAdvice
 public class AbstractRestHandler {
+    
+    /**
+     * Check if this is a static resource request that should not return JSON error
+     */
+    private boolean isStaticResourceRequest() {
+        try {
+            ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            if (attrs == null) return false;
+            HttpServletRequest request = attrs.getRequest();
+            if (request == null) return false;
+            String uri = request.getRequestURI();
+            if (uri == null) return false;
+            return uri.endsWith(".css") || uri.endsWith(".js") || uri.endsWith(".png") 
+                || uri.endsWith(".jpg") || uri.endsWith(".jpeg") || uri.endsWith(".gif")
+                || uri.endsWith(".ico") || uri.endsWith(".svg") || uri.endsWith(".woff")
+                || uri.endsWith(".woff2") || uri.endsWith(".ttf") || uri.endsWith(".map");
+        } catch (Exception e) {
+            return false;
+        }
+    }
 
     @ExceptionHandler(value = {RequestNotValidException.class})
     public ResponseEntity<Object> handleRequestNotValidException(RequestNotValidException e){
@@ -158,14 +185,50 @@ public class AbstractRestHandler {
         return new ResponseEntity<>(apiException,badRequest);
     }
 
+    @ExceptionHandler(value = {MethodArgumentNotValidException.class})
+    public ResponseEntity<Object> handleMethodArgumentNotValidException(MethodArgumentNotValidException e){
+        HttpStatus badRequest = HttpStatus.BAD_REQUEST;
+        
+        // Extract validation error messages
+        String errorMessage = e.getBindingResult().getFieldErrors().stream()
+                .map(FieldError::getDefaultMessage)
+                .collect(Collectors.joining(", "));
+        
+        // If no field errors, try to get all errors
+        if (errorMessage.isEmpty()) {
+            errorMessage = e.getBindingResult().getAllErrors().stream()
+                    .map(error -> error.getDefaultMessage())
+                    .collect(Collectors.joining(", "));
+        }
+        
+        // Fallback message
+        if (errorMessage.isEmpty()) {
+            errorMessage = "Validation failed";
+        }
+        
+        ApiException apiException = new ApiException(
+                errorMessage,
+                badRequest,
+                LocalDateTime.now()
+        );
+        return new ResponseEntity<>(apiException, badRequest);
+    }
+
     @ExceptionHandler(value = {Exception.class})
     public ResponseEntity<?> handleGlobalException(Exception e){
+        // Skip JSON response for static resource requests (CSS, JS, images, etc.)
+        if (isStaticResourceRequest()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+        
         HttpStatus globalException = HttpStatus.INTERNAL_SERVER_ERROR;
         ApiException apiException = new ApiException(
                 e.getMessage(),
                 globalException,
                 LocalDateTime.now()
         );
-        return new ResponseEntity<>(apiException,globalException);
+        return ResponseEntity.status(globalException)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(apiException);
     }
 }
