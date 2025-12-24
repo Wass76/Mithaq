@@ -15,7 +15,4 @@ public class UserAuthenticationResponse {
     private String firstName;
     private String lastName;
     private String role;
-    
-    // Account activation status
-    private Boolean isActive;
 } 

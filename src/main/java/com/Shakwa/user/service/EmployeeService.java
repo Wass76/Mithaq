@@ -566,7 +566,6 @@ public class EmployeeService extends BaseSecurityService {
         response.setFirstName(employee.getFirstName());
         response.setLastName(employee.getLastName());
         response.setRole(employee.getRole() != null ? employee.getRole().getName() : "EMPLOYEE");
-        response.setIsActive(employee.getStatus() != null && employee.getStatus().name().equals("ACTIVE"));
         return response;
     }
  

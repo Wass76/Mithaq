@@ -3,16 +3,20 @@ package com.Shakwa.user.controller;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.Shakwa.user.dto.AuthenticationRequest;
+import com.Shakwa.user.dto.ChangePasswordRequest;
 import com.Shakwa.user.dto.UserAuthenticationResponse;
+import com.Shakwa.user.service.PasswordService;
 import com.Shakwa.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -31,6 +35,7 @@ import jakarta.validation.Valid;
 public class AdminController {
    
     private final UserService userService;
+    private final PasswordService passwordService;
 
     @PostMapping("/login")
     @Operation(
@@ -52,5 +57,22 @@ public class AdminController {
         return ResponseEntity.ok(response);
     }
 
+    @PutMapping("/change-password")
+    @Operation(
+        summary = "Change password (Admin)", 
+        description = "Change password for the currently authenticated admin user. Requires current password."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Password changed successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid input or incorrect current password"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized"),
+        @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
+    public ResponseEntity<Void> changePassword(
+            @Parameter(description = "Password change request", required = true)
+            @Valid @RequestBody ChangePasswordRequest request) {
+        passwordService.changePassword(request.getOldPassword(), request.getNewPassword());
+        return ResponseEntity.ok().build();
+    }
 
 } 

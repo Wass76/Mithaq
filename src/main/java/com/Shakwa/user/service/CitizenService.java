@@ -164,10 +164,12 @@ public class CitizenService extends BaseSecurityService {
             }
         }
         
-        if (StringUtils.hasText(dto.getName()) && !"cash citizen".equals(dto.getName())) {
-            citizenRepo.findByName(dto.getName())
+        String fullName = dto.getFirstName() + " " + dto.getLastName();
+        if (StringUtils.hasText(dto.getFirstName()) && StringUtils.hasText(dto.getLastName()) 
+                && !"cash citizen".equals(fullName.toLowerCase())) {
+            citizenRepo.findByName(fullName)
                     .ifPresent(existingCitizen -> { 
-                        throw new ConflictException("Citizen with name '" + dto.getName() + "' already exists");
+                        throw new ConflictException("Citizen with name '" + fullName + "' already exists");
                     });
         }
       
@@ -197,11 +199,14 @@ public class CitizenService extends BaseSecurityService {
         Citizen citizen = citizenRepo.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Citizen with ID " + id + " not found"));
 
-        if (StringUtils.hasText(dto.getName()) && !dto.getName().equals(citizen.getFirstName() + " " + citizen.getLastName())) {
-            citizenRepo.findByName(dto.getName())
+        String fullName = dto.getFirstName() + " " + dto.getLastName();
+        String currentFullName = citizen.getFirstName() + " " + citizen.getLastName();
+        if (StringUtils.hasText(dto.getFirstName()) && StringUtils.hasText(dto.getLastName()) 
+                && !fullName.equals(currentFullName)) {
+            citizenRepo.findByName(fullName)
                     .ifPresent(existingCitizen -> {
                         if (!existingCitizen.getId().equals(id)) {
-                            throw new ConflictException("Citizen with name '" + dto.getName() + "' already exists");
+                            throw new ConflictException("Citizen with name '" + fullName + "' already exists");
                         }
                     });
         }
@@ -354,6 +359,7 @@ public class CitizenService extends BaseSecurityService {
     /**
      * إعادة إرسال OTP
      */
+    @Transactional
     public void resendOtp(String email) {
         // التحقق من وجود المواطن
         citizenRepo.findByEmail(email)
@@ -450,7 +456,6 @@ public class CitizenService extends BaseSecurityService {
         response.setFirstName(citizen.getFirstName());
         response.setLastName(citizen.getLastName());
         response.setRole("CITIZEN");
-        response.setIsActive(citizen.getStatus() != null && citizen.getStatus() == UserStatus.ACTIVE);
         return response;
     }
 
@@ -462,8 +467,12 @@ public class CitizenService extends BaseSecurityService {
             throw new ConflictException("Citizen request cannot be null");
         }
         
-        if (!StringUtils.hasText(dto.getName())) {
-            throw new ConflictException("Name is required");
+        if (!StringUtils.hasText(dto.getFirstName())) {
+            throw new ConflictException("First name is required");
+        }
+        
+        if (!StringUtils.hasText(dto.getLastName())) {
+            throw new ConflictException("Last name is required");
         }
         
         if (!StringUtils.hasText(dto.getEmail())) {

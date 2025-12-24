@@ -3,7 +3,6 @@ package com.Shakwa.user.dto;
 import com.Shakwa.utils.annotation.ValidPassword;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -16,9 +15,13 @@ import lombok.NoArgsConstructor;
 @Schema(description = "Citizen Request")
 public class CitizenDTORequest {
  
-    @Schema(description = "Name of the citizen", example = "John Doe")
-    @NotBlank(message = "citizen name is required")
-    private String name;
+    @Schema(description = "First name of the citizen", example = "John")
+    @NotBlank(message = "First name is required")
+    private String firstName;
+
+    @Schema(description = "Last name of the citizen", example = "Doe")
+    @NotBlank(message = "Last name is required")
+    private String lastName;
 
     @Schema(description = "Email address (required for registration)", example = "john.doe@example.com")
     @NotBlank

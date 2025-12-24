@@ -1,7 +1,6 @@
 package com.Shakwa.user.mapper;
 
 import com.Shakwa.user.Enum.UserStatus;
-import com.Shakwa.user.config.RoleConstants;
 import com.Shakwa.user.repository.RoleRepository;
 import org.springframework.stereotype.Component;
 
@@ -40,8 +39,8 @@ public class CitizenMapper {
         if (dto == null) return null;
        
         Citizen citizen = new Citizen();
-        citizen.setFirstName(dto.getName().split(" ")[0]);
-        citizen.setLastName(dto.getName().split(" ")[1]);
+        citizen.setFirstName(dto.getFirstName());
+        citizen.setLastName(dto.getLastName());
         citizen.setEmail(dto.getEmail());
         citizen.setPassword(dto.getPassword());
         citizen.setRole(roleRepository.findByName(CITIZEN).orElse(null));
@@ -52,7 +51,7 @@ public class CitizenMapper {
     public void updateEntityFromDto(Citizen citizen, CitizenDTORequest dto) {
         if (dto == null || citizen == null) return;
         
-        citizen.setFirstName(dto.getName().split(" ")[0]);
-        citizen.setLastName(dto.getName().split(" ")[1]);
+        citizen.setFirstName(dto.getFirstName());
+        citizen.setLastName(dto.getLastName());
     }
 }

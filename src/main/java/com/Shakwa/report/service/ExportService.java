@@ -118,8 +118,9 @@ public class ExportService {
      * Export complaint type distribution to CSV
      */
     public byte[] exportComplaintTypeDistributionToCSV(ComplaintTypeDistributionDTO report) throws IOException {
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        Writer writer = new OutputStreamWriter(outputStream, StandardCharsets.UTF_8);
+        // First, write CSV data to a temporary stream
+        ByteArrayOutputStream tempStream = new ByteArrayOutputStream();
+        Writer writer = new OutputStreamWriter(tempStream, StandardCharsets.UTF_8);
         
         try (CSVWriter csvWriter = new CSVWriter(writer)) {
             csvWriter.writeNext(new String[]{"Complaint Type Distribution Report", "", ""});
@@ -140,13 +141,22 @@ public class ExportService {
             if (report.getDistribution() != null) {
                 for (ComplaintTypeDistributionDTO.TypeCount typeCount : report.getDistribution()) {
                     csvWriter.writeNext(new String[]{
-                        typeCount.getType().getLabel(),
+                        typeCount.getType() != null && typeCount.getType().getLabel() != null 
+                            ? typeCount.getType().getLabel() : "",
                         String.valueOf(typeCount.getCount()),
                         String.format("%.2f%%", typeCount.getPercentage())
                     });
                 }
             }
         }
+        
+        // Now create final output with UTF-8 BOM for proper Excel encoding
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        // Add UTF-8 BOM
+        byte[] bom = {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
+        outputStream.write(bom);
+        // Append the CSV data
+        outputStream.write(tempStream.toByteArray());
         
         return outputStream.toByteArray();
     }
@@ -294,7 +304,8 @@ public class ExportService {
         if (report.getDistribution() != null) {
             for (ComplaintTypeDistributionDTO.TypeCount typeCount : report.getDistribution()) {
                 data.add(List.of(
-                    typeCount.getType().getLabel(),
+                    typeCount.getType() != null && typeCount.getType().getLabel() != null 
+                        ? typeCount.getType().getLabel() : "",
                     String.valueOf(typeCount.getCount()),
                     String.format("%.2f%%", typeCount.getPercentage())
                 ));
