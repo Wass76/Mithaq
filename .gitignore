@@ -34,3 +34,7 @@ build/
 
 # Firebase service account (do not commit secrets)
 src/main/resources/mithaq-956c5-firebase-adminsdk-fbsvc-ce3e6736f9.json
+
+# Local backups and dumps
+backups/
+*.dump
