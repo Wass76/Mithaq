@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.Shakwa.config.JwtService;
 import com.Shakwa.config.RateLimiterConfig;
 import com.Shakwa.user.Enum.GovernmentAgencyType;
+import com.Shakwa.user.Enum.UserStatus;
 import com.Shakwa.user.dto.AuthenticationRequest;
 import com.Shakwa.user.dto.EmployeeCreateRequestDTO;
 import com.Shakwa.user.dto.EmployeeResponseDTO;
@@ -566,6 +567,7 @@ public class EmployeeService extends BaseSecurityService {
         response.setFirstName(employee.getFirstName());
         response.setLastName(employee.getLastName());
         response.setRole(employee.getRole() != null ? employee.getRole().getName() : "EMPLOYEE");
+        response.setIsActive(employee.getStatus() != null && employee.getStatus() == UserStatus.ACTIVE);
         return response;
     }
  

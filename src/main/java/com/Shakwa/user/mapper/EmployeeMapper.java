@@ -1,5 +1,6 @@
 package com.Shakwa.user.mapper;
 
+import com.Shakwa.user.Enum.UserStatus;
 import com.Shakwa.user.dto.EmployeeCreateRequestDTO;
 import com.Shakwa.user.dto.EmployeeResponseDTO;
 import com.Shakwa.user.dto.EmployeeUpdateRequestDTO;
@@ -58,6 +59,7 @@ public class EmployeeMapper {
         dto.setRoleName(entity.getRole() != null ? entity.getRole().getName() : null);
         dto.setStatus(entity.getStatus());
         dto.setGovernmentAgencyId(entity.getGovernmentAgency() != null ? (long) entity.getGovernmentAgency().ordinal() : null);
+        dto.setIsActive(entity.getStatus() != null ? entity.getStatus() == UserStatus.ACTIVE : null);
         
                      
         return dto;

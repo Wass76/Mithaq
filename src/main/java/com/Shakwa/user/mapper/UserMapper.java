@@ -5,8 +5,10 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 import com.Shakwa.user.Enum.GovernmentAgencyType;
+import com.Shakwa.user.Enum.UserStatus;
 import com.Shakwa.user.dto.UserResponseDTO;
 import com.Shakwa.user.entity.BaseUser;
+import com.Shakwa.user.entity.Citizen;
 import com.Shakwa.user.entity.Employee;
 import com.Shakwa.user.entity.User;
 
@@ -57,16 +59,22 @@ public class UserMapper {
             GovernmentAgencyType governmentAgency = employee.getGovernmentAgency();
             if (governmentAgency != null) {
                 response.setGovernmentAgencyName(governmentAgency.getLabel());
-                boolean isAccountActive = isGovernmentAgencyAccountActive(governmentAgency);
-                response.setIsAccountActive(isAccountActive);
+                boolean isGovernmentAgencyActive = isGovernmentAgencyAccountActive(governmentAgency);
+                boolean isUserStatusActive = employee.getStatus() != null && employee.getStatus() == UserStatus.ACTIVE;
+                response.setIsAccountActive(isGovernmentAgencyActive && isUserStatusActive);
             } else {
                 response.setGovernmentAgencyName(null);
-                response.setIsAccountActive(false);
+                response.setIsAccountActive(employee.getStatus() != null && employee.getStatus() == UserStatus.ACTIVE);
             }
-        } else {
-            // For non-employee users (like platform admin), set default values
+        } else if (user instanceof User platformAdmin) {
             response.setGovernmentAgencyName(null);
-            response.setIsAccountActive(true); // Platform admin accounts are always active
+            response.setIsAccountActive(platformAdmin.getStatus() != null && platformAdmin.getStatus() == UserStatus.ACTIVE);
+        } else if (user instanceof Citizen citizen) {
+            response.setGovernmentAgencyName(null);
+            response.setIsAccountActive(citizen.getStatus() != null && citizen.getStatus() == UserStatus.ACTIVE);
+        } else {
+            response.setGovernmentAgencyName(null);
+            response.setIsAccountActive(false);
         }
 
         return response;

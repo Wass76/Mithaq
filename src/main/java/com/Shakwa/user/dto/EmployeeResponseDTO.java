@@ -20,4 +20,5 @@ public class EmployeeResponseDTO {
     private String roleName;
     private UserStatus status;
     private Long governmentAgencyId;
+    private Boolean isActive;
 } 

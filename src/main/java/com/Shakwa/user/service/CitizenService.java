@@ -456,6 +456,7 @@ public class CitizenService extends BaseSecurityService {
         response.setFirstName(citizen.getFirstName());
         response.setLastName(citizen.getLastName());
         response.setRole("CITIZEN");
+        response.setIsActive(citizen.getStatus() != null && citizen.getStatus() == UserStatus.ACTIVE);
         return response;
     }
 

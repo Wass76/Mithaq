@@ -1,5 +1,6 @@
 package com.Shakwa.user.service;
 
+import com.Shakwa.user.Enum.UserStatus;
 import com.Shakwa.user.entity.BaseUser;
 import com.Shakwa.user.repository.*;
 import io.github.resilience4j.ratelimiter.RateLimiter;
@@ -212,6 +213,7 @@ public class UserService {
         userAuthenticationResponse.setFirstName(user.getFirstName());
         userAuthenticationResponse.setLastName(user.getLastName());
         userAuthenticationResponse.setRole(user.getRole().getName());
+        userAuthenticationResponse.setIsActive(user.getStatus() != null && user.getStatus() == UserStatus.ACTIVE);
         
         // Set isActive based on user type and role
         // Boolean isActive = determineUserActiveStatus(user);

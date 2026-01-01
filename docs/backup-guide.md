@@ -16,11 +16,11 @@ Environment knobs:
 The script uses the DB container’s `POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` env vars; nothing sensitive is read from the host.
 
 ## Schedule (cron)
-Example daily 02:00 UTC+0:
+Installed on server (daily at 00:00 server time):
 ```
-0 2 * * * cd /opt/shakwa && BACKUP_RETENTION_DAYS=14 ./scripts/db-backup.sh >> /var/log/shakwa-backup.log 2>&1
+0 0 * * * cd /home/wassem/Mithaq && COMPOSE_CMD="/usr/bin/docker compose" BACKUP_RETENTION_DAYS=14 ./scripts/db-backup.sh >> /var/log/shakwa-backup.log 2>&1
 ```
-Adjust path and retention as needed.
+Use absolute paths to avoid PATH issues inside cron. Logs go to `/var/log/shakwa-backup.log`.
 
 ## Restore (custom-format dump)
 ```bash
