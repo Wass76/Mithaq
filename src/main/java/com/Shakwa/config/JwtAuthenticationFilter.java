@@ -1,5 +1,9 @@
 package com.Shakwa.config;
 
+import com.Shakwa.user.Enum.UserStatus;
+import com.Shakwa.user.entity.Citizen;
+import com.Shakwa.user.entity.Employee;
+import com.Shakwa.user.entity.User;
 import com.Shakwa.user.service.TokenBlacklistService;
 import com.Shakwa.utils.restExceptionHanding.ApiException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -54,6 +58,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             userEmail = jwtService.extractUsername(jwt);
             if(userEmail != null && SecurityContextHolder.getContext().getAuthentication()==null){
                 UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
+
+                if (!isUserActive(userDetails)) {
+                    handleTokenExpiredException(response, "Account is inactive");
+                    return;
+                }
+
                 if(jwtService.isTokenValid(jwt,userDetails)){
                     UsernamePasswordAuthenticationToken authToken =  new UsernamePasswordAuthenticationToken(
                             userDetails,
@@ -90,5 +100,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         
         response.getWriter().write(jsonResponse);
         response.getWriter().flush();
+    }
+
+    private boolean isUserActive(UserDetails userDetails) {
+        if (userDetails instanceof User user) {
+            return user.getStatus() != null && user.getStatus() == UserStatus.ACTIVE;
+        }
+        if (userDetails instanceof Employee employee) {
+            return employee.getStatus() != null && employee.getStatus() == UserStatus.ACTIVE;
+        }
+        if (userDetails instanceof Citizen citizen) {
+            return citizen.getStatus() != null && citizen.getStatus() == UserStatus.ACTIVE;
+        }
+        return userDetails.isEnabled();
     }
 }

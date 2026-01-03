@@ -68,4 +68,9 @@ public class Employee extends BaseUser {
 
         return new ArrayList<>(authorities);
     }
+
+    @Override
+    public boolean isEnabled() {
+        return status != null && status == UserStatus.ACTIVE;
+    }
 }

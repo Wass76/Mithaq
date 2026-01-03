@@ -191,6 +191,10 @@ public class UserService {
                     () -> new RequestNotValidException("User email not found")
             );
 
+            if (user.getStatus() == null || user.getStatus() != UserStatus.ACTIVE) {
+                throw new RequestNotValidException("User account is not active");
+            }
+
             var jwtToken = jwtService.generateToken(user);
             
             UserAuthenticationResponse response = userEntityToDto(user);

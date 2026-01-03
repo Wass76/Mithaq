@@ -537,7 +537,7 @@ public class EmployeeService extends BaseSecurityService {
             );
 
             // التحقق من أن الموظف نشط
-            if (employee.getStatus() != null && !employee.getStatus().name().equals("ACTIVE")) {
+            if (employee.getStatus() == null || employee.getStatus() != UserStatus.ACTIVE) {
                 throw new RequestNotValidException("Employee account is not active");
             }
 

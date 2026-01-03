@@ -316,6 +316,7 @@ public class CitizenService extends BaseSecurityService {
     /**
      * التحقق من OTP وتفعيل الحساب
      */
+    @Transactional
     public void verifyOtp(String email, String otpCode) {
         Citizen citizen = citizenRepo.findByEmail(email).orElseThrow(
                 () -> new ResourceNotFoundException("Citizen with email " + email + " not found")
@@ -354,6 +355,7 @@ public class CitizenService extends BaseSecurityService {
         // بعد التحقق الناجح، يمكن حذف OTP أو تركه للتنظيف التلقائي
         otpRepository.delete(otp);
         citizen.setStatus(UserStatus.ACTIVE);
+        citizenRepo.save(citizen);
     }
 
     /**
@@ -429,6 +431,10 @@ public class CitizenService extends BaseSecurityService {
             Optional<OtpVerification> otpOptional = otpRepository.findByEmail(request.getEmail());
             if (otpOptional.isPresent()) {
                 throw new RequestNotValidException("Please verify your email first. Check your email for OTP code.");
+            }
+
+            if (citizen.getStatus() == null || citizen.getStatus() != UserStatus.ACTIVE) {
+                throw new RequestNotValidException("Citizen account is not active");
             }
 
             var jwtToken = jwtService.generateToken(citizen);
